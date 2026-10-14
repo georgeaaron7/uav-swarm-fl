@@ -83,6 +83,27 @@ Electronics (MDPI) 2023, 12(18), 3938. Its aggregation method is **CosAvg** (cos
 
 **Our method:** **CCRA**, Context-Calibrated Robust Aggregation.
 
+### Base paper vs our work
+
+| | Base paper: CosAvg (Electronics 2023) | **Ours: CCRA** |
+|---|---|---|
+| **Goal** | Secure UAV-assisted FL using a TEE plus robust aggregation | Robust UAV-swarm FL under **Byzantine attacks + EW jamming + non-IID data** |
+| **Trust anchor** | TEE on the aggregator | TEE on the aggregator (same assumption), which holds a small trusted reference set |
+| **Reference for "good" updates** | Mean of all received updates | Update computed on the trusted reference set inside the TEE |
+| **How updates are weighted** | Cosine similarity to the mean; negative similarity dropped | Channel-calibrated cosine to the trusted reference, plus reputation memory across rounds |
+| **Wireless channel** | Not modelled ? | Modelled: path loss, fading, jammer, SINR, packet loss, noise |
+| **Lost packets** | Lost parameters treated as 0 (in our reimplementation) | Each parameter averaged only over drones that delivered it |
+| **Honest drone with a bad link** | Looks dissimilar and gets down-weighted | Similarity is adjusted for the drone's SINR, so legitimate noise isn't punished |
+| **Non-IID data** | Not addressed ? | Core part of the design. We show that cosine-to-mean breaks under non-IID. |
+| **Memory across rounds** | None (each round independent) ? | Reputation (EMA). Caught attackers stay distrusted. |
+| **Norm clipping** | ? | Yes (median RMS) |
+| **Evaluation focus** | TEE overhead vs HE/DP, plus robustness to malicious clients | Accuracy under 4 scenarios: clean / jamming / attack / attack + jamming |
+| **Accuracy under 30% label-flip + jamming** (our setup) | 39.7% | **43.0%** |
+| **Attackers' weight share** (same scenario) | 21.5% | **8.4%** |
+| **Cost when there is no attack** | — | About 2.5 points lower than CosAvg |
+
+**?** means the full paper text was not accessible when this was written. Check against the paper.
+
 ### Results
 
 Setup: aerial CIFAR-10, 10 drones with non-IID data (Dirichlet α=0.5), TacticalEdgeCNN, 30 rounds, 1 local epoch, seed 42.
