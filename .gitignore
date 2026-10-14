@@ -11,3 +11,4 @@ data/
 
 # Throwaway runs
 results/smoke_test/
+results/*smoke*/

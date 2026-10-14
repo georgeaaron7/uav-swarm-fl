@@ -16,7 +16,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from .aggregators import build_aggregator
+from .aggregators import FedAvg, build_aggregator  # noqa: F401  (re-exported for callers/tests)
 from .channel import WirelessChannel
 from .client import DroneClient
 
