@@ -34,6 +34,14 @@ class DroneClient:
         self.position = None               # Month 3: simulated (x, y, z) coordinates
         self.link_telemetry: dict = {}     # Month 3: SNR / packet-loss from the network sim
 
+    def make_malicious(self, attack: str, num_classes: int = 10) -> None:
+        """Byzantine drone. label_flip: every label c becomes (C-1-c), e.g. airplane<->truck."""
+        self.is_malicious = True
+        if attack == "label_flip":
+            self.y = (num_classes - 1) - self.y
+        else:
+            raise ValueError(f"Unknown attack '{attack}'")
+
     @property
     def num_samples(self) -> int:
         return len(self.y)

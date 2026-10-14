@@ -34,8 +34,29 @@ class FLConfig:
     momentum: float = 0.9
     weight_decay: float = 5e-4
 
-    # --- aggregation (Month 4 swaps this for the trust-gated aggregator) ---
+    # --- aggregation: fedavg | cosavg (base paper) | ccra (ours) | ccra_noctx (ablation) ---
     aggregator: str = "fedavg"
+    ccra_beta: float = 0.5  # reputation memory
+    ccra_gate: float = 0.3  # drones below this trust are excluded
+
+    # --- Byzantine attack ---
+    attack: str = "none"  # none | label_flip
+    malicious_ids: str = ""  # e.g. "0,3,6"
+
+    # --- wireless channel ---
+    channel: str = "ideal"  # ideal | lossy
+    jammed_ids: str = ""  # drones whose sector the EW jammer targets, e.g. "2,5,9"
+    area_m: float = 800.0
+    drone_alt_m: float = 100.0
+    mobility_m: float = 10.0  # random-walk step per round
+    tx_power_dbm: float = 20.0
+    noise_dbm: float = -90.0
+    pathloss_exp: float = 2.2
+    jammer_power_dbm: float = 10.0
+    per_threshold_db: float = 3.0
+    per_slope: float = 1.0
+    packet_size: int = 1024  # parameters per packet
+    noise_scale: float = 1.0  # residual channel noise on delivered packets
 
     # --- evaluation ---
     eval_every: int = 1

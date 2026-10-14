@@ -1,0 +1,59 @@
+Device: cpu | torch 2.14.0+cpu
+Dataset: cifar10_aerial | train=50000 test=10000
+Attack: label_flip on drones 0,3,6
+Channel: lossy | jammer targeting drones 2,5,9
+Swarm: 10 drones, partition=dirichlet, samples/drone min=1510 max=10871
+Model: TacticalEdgeCNN (156,074 params) | aggregator=ccra_noctx
+CCRA trusted reference set: 500 images
+[attack_lossy__ccra_noctx r  1/30] acc= 10.00% pdr=0.70 mal_w=0.23 (24.3s)
+[attack_lossy__ccra_noctx r  2/30] acc= 19.23% pdr=0.69 mal_w=0.00 (19.8s)
+[attack_lossy__ccra_noctx r  3/30] acc= 23.16% pdr=0.70 mal_w=0.00 (21.5s)
+[attack_lossy__ccra_noctx r  4/30] acc= 24.42% pdr=0.80 mal_w=0.13 (21.3s)
+[attack_lossy__ccra_noctx r  5/30] acc= 28.35% pdr=0.75 mal_w=0.00 (20.4s)
+[attack_lossy__ccra_noctx r  6/30] acc= 29.91% pdr=0.56 mal_w=0.00 (21.6s)
+[attack_lossy__ccra_noctx r  7/30] acc= 30.37% pdr=0.52 mal_w=0.16 (22.9s)
+[attack_lossy__ccra_noctx r  8/30] acc= 32.34% pdr=0.61 mal_w=0.00 (20.8s)
+[attack_lossy__ccra_noctx r  9/30] acc= 28.54% pdr=0.63 mal_w=0.15 (19.9s)
+[attack_lossy__ccra_noctx r 10/30] acc= 33.85% pdr=0.69 mal_w=0.00 (18.8s)
+[attack_lossy__ccra_noctx r 11/30] acc= 28.44% pdr=0.75 mal_w=0.18 (19.2s)
+[attack_lossy__ccra_noctx r 12/30] acc= 35.68% pdr=0.80 mal_w=0.00 (22.0s)
+[attack_lossy__ccra_noctx r 13/30] acc= 33.87% pdr=0.81 mal_w=0.00 (19.2s)
+[attack_lossy__ccra_noctx r 14/30] acc= 36.52% pdr=0.67 mal_w=0.00 (19.3s)
+[attack_lossy__ccra_noctx r 15/30] acc= 37.42% pdr=0.61 mal_w=0.04 (19.4s)
+[attack_lossy__ccra_noctx r 16/30] acc= 38.20% pdr=0.68 mal_w=0.00 (20.1s)
+[attack_lossy__ccra_noctx r 17/30] acc= 38.48% pdr=0.77 mal_w=0.00 (20.3s)
+[attack_lossy__ccra_noctx r 18/30] acc= 38.14% pdr=0.67 mal_w=0.16 (19.5s)
+[attack_lossy__ccra_noctx r 19/30] acc= 38.85% pdr=0.57 mal_w=0.00 (20.1s)
+[attack_lossy__ccra_noctx r 20/30] acc= 36.23% pdr=0.51 mal_w=0.22 (19.8s)
+[attack_lossy__ccra_noctx r 21/30] acc= 39.76% pdr=0.62 mal_w=0.03 (19.5s)
+[attack_lossy__ccra_noctx r 22/30] acc= 39.28% pdr=0.71 mal_w=0.18 (19.0s)
+[attack_lossy__ccra_noctx r 23/30] acc= 39.71% pdr=0.72 mal_w=0.09 (19.4s)
+[attack_lossy__ccra_noctx r 24/30] acc= 40.13% pdr=0.64 mal_w=0.00 (22.6s)
+[attack_lossy__ccra_noctx r 25/30] acc= 37.56% pdr=0.43 mal_w=0.34 (21.9s)
+[attack_lossy__ccra_noctx r 26/30] acc= 41.47% pdr=0.68 mal_w=0.03 (22.3s)
+[attack_lossy__ccra_noctx r 27/30] acc= 40.80% pdr=0.84 mal_w=0.00 (22.4s)
+[attack_lossy__ccra_noctx r 28/30] acc= 42.81% pdr=0.51 mal_w=0.00 (22.8s)
+[attack_lossy__ccra_noctx r 29/30] acc= 42.07% pdr=0.70 mal_w=0.18 (26.8s)
+[attack_lossy__ccra_noctx r 30/30] acc= 43.87% pdr=0.62 mal_w=0.00 (22.3s)
+
+=== Baseline summary ===
+{
+  "name": "attack_lossy__ccra_noctx",
+  "final_test_acc": 0.4387,
+  "best_test_acc": 0.4387,
+  "best_round": 30,
+  "mean_last5_test_acc": 0.42203999999999997,
+  "final_per_class_acc": {
+    "airplane": 0.5320000052452087,
+    "automobile": 0.009999999776482582,
+    "bird": 0.2540000081062317,
+    "cat": 0.1459999978542328,
+    "deer": 0.5170000195503235,
+    "dog": 0.31200000643730164,
+    "frog": 0.6370000243186951,
+    "horse": 0.5429999828338623,
+    "ship": 0.7120000123977661,
+    "truck": 0.7239999771118164
+  },
+  "total_time_min": 10.491888197263082
+}

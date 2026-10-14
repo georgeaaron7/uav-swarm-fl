@@ -1,0 +1,20 @@
+{
+  "name": "attack_lossy__fedavg",
+  "final_test_acc": 0.382,
+  "best_test_acc": 0.394,
+  "best_round": 26,
+  "mean_last5_test_acc": 0.36782,
+  "final_per_class_acc": {
+    "airplane": 0.47999998927116394,
+    "automobile": 0.00800000037997961,
+    "bird": 0.328000009059906,
+    "cat": 0.4429999887943268,
+    "deer": 0.4729999899864197,
+    "dog": 0.125,
+    "frog": 0.3050000071525574,
+    "horse": 0.453000009059906,
+    "ship": 0.8519999980926514,
+    "truck": 0.3529999852180481
+  },
+  "total_time_min": 19.717308727900186
+}

@@ -40,6 +40,12 @@ def main(argv=None):
 
     splits = partition(train_ds, cfg)
     clients = [DroneClient(i, train_ds, idx, cfg, device) for i, idx in enumerate(splits)]
+    if cfg.attack != "none":
+        from fl.channel import parse_ids
+        for cid in parse_ids(cfg.malicious_ids):
+            clients[cid].make_malicious(cfg.attack, num_classes)
+        print(f"Attack: {cfg.attack} on drones {cfg.malicious_ids}")
+    print(f"Channel: {cfg.channel}" + (f" | jammer targeting drones {cfg.jammed_ids}" if cfg.jammed_ids else ""))
 
     swarm_info = {c.client_id: {"num_samples": c.num_samples, "label_hist": c.label_histogram(num_classes)}
                   for c in clients}
@@ -48,10 +54,20 @@ def main(argv=None):
     print(f"Swarm: {cfg.num_clients} drones, partition={cfg.partition}, "
           f"samples/drone min={min(c.num_samples for c in clients)} max={max(c.num_samples for c in clients)}")
 
+    set_seed(cfg.seed)  # identical initial weights for every method
     model = build_model(cfg.model, num_classes)
     print(f"Model: {type(model).__name__} ({count_params(model):,} params) | aggregator={cfg.aggregator}")
 
-    server = FederatedServer(model, clients, test_ds, cfg, device)
+    root_client = None
+    if cfg.aggregator.startswith("ccra"):
+        # Trusted reference set held in the aggregator's TEE: 50 clean images per class.
+        g = torch.Generator().manual_seed(cfg.seed + 99)
+        ref_idx = torch.cat([(train_ds.targets == c).nonzero().flatten()[
+            torch.randperm(int((train_ds.targets == c).sum()), generator=g)[:50]] for c in range(num_classes)])
+        root_client = DroneClient(-1, train_ds, ref_idx.numpy(), cfg, device)
+        print(f"CCRA trusted reference set: {len(ref_idx)} images")
+
+    server = FederatedServer(model, clients, test_ds, cfg, device, root_client=root_client)
     t0 = time.time()
     history = server.run(run_dir)
     elapsed = time.time() - t0

@@ -65,9 +65,46 @@ A nadir (downward-looking) drone camera has no fixed "up" direction, and its eff
 
 See `results/BASELINE.md`. It is generated after the runs finish.
 
-### Hooks for later months
+Months 2–3 build on this pipeline. See below.
 
-* **Month 2 (label flipping):** `DroneClient.is_malicious` is available, and `DroneClient.y` holds the local labels, which can be overwritten.
-* **Month 3 (NS-3 / EW jamming):** `DroneClient.position` and `DroneClient.link_telemetry` hold SNR and packet-loss values.
-* **Month 4 (trust metric):** subclass `Aggregator` in `fl/server.py`, register it in `AGGREGATORS`, then run with `--aggregator trust`.
-  `aggregate()` receives every `ClientUpdate` and can read each client's telemetry.
+---
+
+## Months 2–3: Byzantine attacks, lossy wireless channel, and CCRA vs the base paper
+
+**Base paper:** *Unmanned Aerial Vehicle-Assisted Federated Learning Method Based on a Trusted Execution Environment*,
+Electronics (MDPI) 2023, 12(18), 3938. Its aggregation method is **CosAvg** (cosine-similarity-based aggregation).
+
+**Our method:** **CCRA**, Context-Calibrated Robust Aggregation.
+
+### What was added
+| File | What it does |
+|---|---|
+| `fl/channel.py` | Lossy wireless uplink. Includes drone positions and mobility, log-distance path loss, Rayleigh fading, a ground EW jammer, SINR, a logistic PER curve, per-packet erasures (1,024 params/packet), and residual noise ∝ 10^(−SINR/20). Each drone reports SINR, PER and PDR telemetry. |
+| `fl/client.py` | `make_malicious()` implements a label-flipping attack (c → 9−c, e.g. airplane ↔ truck). |
+| `fl/aggregators.py` | `FedAvg`, `CosAvg` (base paper), `CCRA` (ours), and `ccra_noctx` (an ablation without the channel context). |
+| `run_experiments.py` | Runs the full comparison matrix in parallel. |
+| `plot_compare.py` | Produces the accuracy curves, the final-accuracy bars, the weight-share plot and `RESULTS.md`. |
+
+### Fair comparison
+Every run uses the same seed, Dirichlet α=0.5 non-IID split, initial weights, malicious drones (0, 3, 6), jammer position (over drones 2, 5, 9), per-round channel realisation, model and hyperparameters.
+**Only the aggregation rule changes.**
+
+### CCRA in one paragraph
+The aggregator's TEE (the same trust anchor the base paper assumes) holds a small clean reference set of 50 images/class. Each round, CCRA does the following:
+
+1. Computes a trusted reference update from that set.
+2. Scores each drone by the cosine between its update and the reference. The cosine is computed only over packets that actually arrived, and calibrated for the expected noise at that drone's reported SINR.
+3. Turns the score into a reputation that persists across rounds, and excludes drones whose reputation falls below 0.3.
+4. Clips each update's norm.
+5. Averages each parameter only over the drones that delivered it.
+
+FedAvg and CosAvg instead treat lost packets as zeros, which dilutes every update.
+
+### Key observation that motivates CCRA
+Under non-IID data, cosine similarity to the *mean or median* update (the CosAvg reference) does **not** separate attackers from honest drones that simply hold unusual data. In our diagnostics, the attackers' cosine (0.1–0.2) overlapped with that of honest-but-skewed drones. Cosine to a *trusted reference update* was negative for the attackers in every round.
+
+### Run
+```powershell
+python run_experiments.py        # 13 runs, about 1 h on an 8-core CPU
+python plot_compare.py           # figures + results/compare/RESULTS.md
+```
