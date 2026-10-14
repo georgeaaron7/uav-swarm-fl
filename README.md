@@ -63,7 +63,14 @@ A nadir (downward-looking) drone camera has no fixed "up" direction, and its eff
 
 ### Baseline results
 
-See `results/BASELINE.md`. It is generated after the runs finish.
+| Run | Partition | Final test accuracy |
+|---|---|---|
+| `fedavg_iid` | IID (5,000 balanced images/drone) | **62.62%** |
+| `fedavg_noniid` | Dirichlet α=0.5 | **60.23%** |
+
+Both runs: 10 drones, 50 rounds, 2 local epochs. Details are in `results/BASELINE.md`.
+
+![Month 1 baseline curves](results/baseline_curves.png)
 
 Months 2–3 build on this pipeline. See below.
 
@@ -75,6 +82,47 @@ Months 2–3 build on this pipeline. See below.
 Electronics (MDPI) 2023, 12(18), 3938. Its aggregation method is **CosAvg** (cosine-similarity-based aggregation).
 
 **Our method:** **CCRA**, Context-Calibrated Robust Aggregation.
+
+### Results
+
+Setup: aerial CIFAR-10, 10 drones with non-IID data (Dirichlet α=0.5), TacticalEdgeCNN, 30 rounds, 1 local epoch, seed 42.
+The attackers are drones 0, 3 and 6, which flip their labels. The jammer targets drones 2, 5 and 9, which are honest.
+
+**Accuracy (%), mean of the last 5 rounds:**
+
+| Scenario | FedAvg | CosAvg (base paper) | **CCRA (ours)** |
+|---|---|---|---|
+| No attack, ideal channel | 46.5 | **47.1** | 44.5 |
+| No attack, EW-jammed lossy channel | 44.6 | **45.6** | 43.1 |
+| 30% label-flip, ideal channel | 37.6 | 36.6 | **43.3** |
+| 30% label-flip + EW-jammed lossy channel | 36.8 | 39.7 | **43.0** |
+
+**Share of aggregation weight given to the malicious drones** (mean of the last 10 rounds):
+
+| Scenario | FedAvg | CosAvg | **CCRA** |
+|---|---|---|---|
+| 30% label-flip, ideal channel | 26.0% | 19.1% | **1.9%** |
+| 30% label-flip + EW-jammed lossy channel | 27.5% | 21.5% | **8.4%** |
+
+![Final accuracy per scenario](results/compare/final_accuracy_bars.png)
+
+![Accuracy over rounds](results/compare/accuracy_curves.png)
+
+**Who gets trusted under attack and jamming.** FedAvg weights the attackers (red) as much as anyone. CosAvg keeps letting them back in and often ignores the honest jammed drones (orange). CCRA keeps the attackers near 0 most of the time, while the honest jammed drones keep contributing.
+
+![Aggregation weight share](results/compare/weight_share_attack_lossy.png)
+
+**Takeaways**
+1. The label-flipping attack costs FedAvg about 10 points (46.5 → 36.8).
+2. Under attack, CosAvg (the base paper) barely helps: it gets 36.6–39.7% and still gives the attackers about 20% of the weight.
+3. CCRA stays at about 43–44% in every scenario. That is **+6.7 over CosAvg under attack** and **+3.3 under attack plus jamming**.
+4. CCRA costs about 2.5 points when there is no attack, because it sometimes down-weights honest drones whose data is very skewed.
+
+**Limitations (work in progress)**
+- Results are from a single seed and 30 rounds. Multi-seed runs are next.
+- The channel-context part of CCRA adds only +0.8 points over the no-context ablation (42.2 → 43.0), which is within noise.
+- CCRA uses a 500-image trusted reference set in the TEE and CosAvg does not. Running CosAvg with the same reference is planned.
+- CosAvg is our reimplementation from the paper's description.
 
 ### What was added
 | File | What it does |
