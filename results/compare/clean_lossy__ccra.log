@@ -1,0 +1,58 @@
+Device: cpu | torch 2.14.0+cpu
+Dataset: cifar10_aerial | train=50000 test=10000
+Channel: lossy | jammer targeting drones 2,5,9
+Swarm: 10 drones, partition=dirichlet, samples/drone min=1510 max=10871
+Model: TacticalEdgeCNN (156,074 params) | aggregator=ccra
+CCRA trusted reference set: 500 images
+[clean_lossy__ccra r  1/30] acc= 15.42% pdr=0.70 mal_w=0.00 (33.7s)
+[clean_lossy__ccra r  2/30] acc= 18.10% pdr=0.69 mal_w=0.00 (28.1s)
+[clean_lossy__ccra r  3/30] acc= 23.44% pdr=0.70 mal_w=0.00 (32.5s)
+[clean_lossy__ccra r  4/30] acc= 27.87% pdr=0.80 mal_w=0.00 (29.2s)
+[clean_lossy__ccra r  5/30] acc= 29.52% pdr=0.75 mal_w=0.00 (29.2s)
+[clean_lossy__ccra r  6/30] acc= 28.77% pdr=0.56 mal_w=0.00 (28.6s)
+[clean_lossy__ccra r  7/30] acc= 32.10% pdr=0.52 mal_w=0.00 (28.8s)
+[clean_lossy__ccra r  8/30] acc= 34.00% pdr=0.61 mal_w=0.00 (28.7s)
+[clean_lossy__ccra r  9/30] acc= 35.52% pdr=0.63 mal_w=0.00 (28.9s)
+[clean_lossy__ccra r 10/30] acc= 35.24% pdr=0.69 mal_w=0.00 (29.3s)
+[clean_lossy__ccra r 11/30] acc= 36.09% pdr=0.75 mal_w=0.00 (27.6s)
+[clean_lossy__ccra r 12/30] acc= 37.33% pdr=0.80 mal_w=0.00 (28.3s)
+[clean_lossy__ccra r 13/30] acc= 37.09% pdr=0.81 mal_w=0.00 (28.1s)
+[clean_lossy__ccra r 14/30] acc= 39.58% pdr=0.67 mal_w=0.00 (28.3s)
+[clean_lossy__ccra r 15/30] acc= 37.68% pdr=0.61 mal_w=0.00 (27.7s)
+[clean_lossy__ccra r 16/30] acc= 39.48% pdr=0.68 mal_w=0.00 (28.2s)
+[clean_lossy__ccra r 17/30] acc= 39.99% pdr=0.77 mal_w=0.00 (29.0s)
+[clean_lossy__ccra r 18/30] acc= 36.05% pdr=0.67 mal_w=0.00 (31.6s)
+[clean_lossy__ccra r 19/30] acc= 38.43% pdr=0.57 mal_w=0.00 (30.1s)
+[clean_lossy__ccra r 20/30] acc= 40.68% pdr=0.51 mal_w=0.00 (31.8s)
+[clean_lossy__ccra r 21/30] acc= 40.42% pdr=0.62 mal_w=0.00 (30.2s)
+[clean_lossy__ccra r 22/30] acc= 43.08% pdr=0.71 mal_w=0.00 (30.1s)
+[clean_lossy__ccra r 23/30] acc= 41.02% pdr=0.72 mal_w=0.00 (30.0s)
+[clean_lossy__ccra r 24/30] acc= 39.60% pdr=0.64 mal_w=0.00 (30.1s)
+[clean_lossy__ccra r 25/30] acc= 37.41% pdr=0.43 mal_w=0.00 (30.1s)
+[clean_lossy__ccra r 26/30] acc= 43.19% pdr=0.68 mal_w=0.00 (30.3s)
+[clean_lossy__ccra r 27/30] acc= 44.06% pdr=0.84 mal_w=0.00 (30.4s)
+[clean_lossy__ccra r 28/30] acc= 41.84% pdr=0.51 mal_w=0.00 (30.1s)
+[clean_lossy__ccra r 29/30] acc= 41.67% pdr=0.70 mal_w=0.00 (29.9s)
+[clean_lossy__ccra r 30/30] acc= 44.54% pdr=0.62 mal_w=0.00 (30.3s)
+
+=== Baseline summary ===
+{
+  "name": "clean_lossy__ccra",
+  "final_test_acc": 0.4454,
+  "best_test_acc": 0.4454,
+  "best_round": 30,
+  "mean_last5_test_acc": 0.4306,
+  "final_per_class_acc": {
+    "airplane": 0.4860000014305115,
+    "automobile": 0.054999999701976776,
+    "bird": 0.2150000035762787,
+    "cat": 0.3529999852180481,
+    "deer": 0.5720000267028809,
+    "dog": 0.25099998712539673,
+    "frog": 0.6100000143051147,
+    "horse": 0.5320000052452087,
+    "ship": 0.6240000128746033,
+    "truck": 0.7559999823570251
+  },
+  "total_time_min": 14.825888228416442
+}

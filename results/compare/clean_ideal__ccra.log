@@ -1,0 +1,58 @@
+Device: cpu | torch 2.14.0+cpu
+Dataset: cifar10_aerial | train=50000 test=10000
+Channel: ideal
+Swarm: 10 drones, partition=dirichlet, samples/drone min=1510 max=10871
+Model: TacticalEdgeCNN (156,074 params) | aggregator=ccra
+CCRA trusted reference set: 500 images
+[clean_ideal__ccra r  1/30] acc= 10.72% pdr=1.00 mal_w=0.00 (32.2s)
+[clean_ideal__ccra r  2/30] acc= 19.66% pdr=1.00 mal_w=0.00 (28.0s)
+[clean_ideal__ccra r  3/30] acc= 23.19% pdr=1.00 mal_w=0.00 (27.9s)
+[clean_ideal__ccra r  4/30] acc= 26.85% pdr=1.00 mal_w=0.00 (27.6s)
+[clean_ideal__ccra r  5/30] acc= 31.44% pdr=1.00 mal_w=0.00 (27.7s)
+[clean_ideal__ccra r  6/30] acc= 31.09% pdr=1.00 mal_w=0.00 (31.5s)
+[clean_ideal__ccra r  7/30] acc= 33.98% pdr=1.00 mal_w=0.00 (32.8s)
+[clean_ideal__ccra r  8/30] acc= 34.29% pdr=1.00 mal_w=0.00 (28.7s)
+[clean_ideal__ccra r  9/30] acc= 35.76% pdr=1.00 mal_w=0.00 (31.6s)
+[clean_ideal__ccra r 10/30] acc= 36.32% pdr=1.00 mal_w=0.00 (32.0s)
+[clean_ideal__ccra r 11/30] acc= 35.79% pdr=1.00 mal_w=0.00 (31.1s)
+[clean_ideal__ccra r 12/30] acc= 37.72% pdr=1.00 mal_w=0.00 (31.0s)
+[clean_ideal__ccra r 13/30] acc= 37.86% pdr=1.00 mal_w=0.00 (31.8s)
+[clean_ideal__ccra r 14/30] acc= 36.00% pdr=1.00 mal_w=0.00 (32.3s)
+[clean_ideal__ccra r 15/30] acc= 39.53% pdr=1.00 mal_w=0.00 (33.6s)
+[clean_ideal__ccra r 16/30] acc= 40.46% pdr=1.00 mal_w=0.00 (33.0s)
+[clean_ideal__ccra r 17/30] acc= 40.73% pdr=1.00 mal_w=0.00 (32.1s)
+[clean_ideal__ccra r 18/30] acc= 41.16% pdr=1.00 mal_w=0.00 (32.6s)
+[clean_ideal__ccra r 19/30] acc= 41.21% pdr=1.00 mal_w=0.00 (33.0s)
+[clean_ideal__ccra r 20/30] acc= 42.30% pdr=1.00 mal_w=0.00 (33.1s)
+[clean_ideal__ccra r 21/30] acc= 42.43% pdr=1.00 mal_w=0.00 (33.7s)
+[clean_ideal__ccra r 22/30] acc= 42.63% pdr=1.00 mal_w=0.00 (31.4s)
+[clean_ideal__ccra r 23/30] acc= 42.17% pdr=1.00 mal_w=0.00 (32.5s)
+[clean_ideal__ccra r 24/30] acc= 42.79% pdr=1.00 mal_w=0.00 (32.4s)
+[clean_ideal__ccra r 25/30] acc= 43.87% pdr=1.00 mal_w=0.00 (33.4s)
+[clean_ideal__ccra r 26/30] acc= 43.31% pdr=1.00 mal_w=0.00 (35.3s)
+[clean_ideal__ccra r 27/30] acc= 43.76% pdr=1.00 mal_w=0.00 (32.7s)
+[clean_ideal__ccra r 28/30] acc= 45.25% pdr=1.00 mal_w=0.00 (32.6s)
+[clean_ideal__ccra r 29/30] acc= 45.23% pdr=1.00 mal_w=0.00 (33.8s)
+[clean_ideal__ccra r 30/30] acc= 44.89% pdr=1.00 mal_w=0.00 (34.9s)
+
+=== Baseline summary ===
+{
+  "name": "clean_ideal__ccra",
+  "final_test_acc": 0.4489,
+  "best_test_acc": 0.4525,
+  "best_round": 28,
+  "mean_last5_test_acc": 0.44488000000000005,
+  "final_per_class_acc": {
+    "airplane": 0.4099999964237213,
+    "automobile": 0.3019999861717224,
+    "bird": 0.25200000405311584,
+    "cat": 0.20100000500679016,
+    "deer": 0.5690000057220459,
+    "dog": 0.2070000022649765,
+    "frog": 0.5960000157356262,
+    "horse": 0.5740000009536743,
+    "ship": 0.6119999885559082,
+    "truck": 0.765999972820282
+  },
+  "total_time_min": 15.937221121788024
+}

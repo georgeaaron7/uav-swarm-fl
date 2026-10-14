@@ -1,0 +1,57 @@
+Device: cpu | torch 2.14.0+cpu
+Dataset: cifar10_aerial | train=50000 test=10000
+Channel: ideal
+Swarm: 10 drones, partition=dirichlet, samples/drone min=1510 max=10871
+Model: TacticalEdgeCNN (156,074 params) | aggregator=fedavg
+[clean_ideal__fedavg r  1/30] acc= 11.33% pdr=1.00 mal_w=0.00 (33.1s)
+[clean_ideal__fedavg r  2/30] acc= 21.50% pdr=1.00 mal_w=0.00 (28.0s)
+[clean_ideal__fedavg r  3/30] acc= 26.09% pdr=1.00 mal_w=0.00 (27.7s)
+[clean_ideal__fedavg r  4/30] acc= 27.16% pdr=1.00 mal_w=0.00 (27.8s)
+[clean_ideal__fedavg r  5/30] acc= 32.98% pdr=1.00 mal_w=0.00 (28.0s)
+[clean_ideal__fedavg r  6/30] acc= 33.62% pdr=1.00 mal_w=0.00 (31.2s)
+[clean_ideal__fedavg r  7/30] acc= 36.47% pdr=1.00 mal_w=0.00 (32.9s)
+[clean_ideal__fedavg r  8/30] acc= 36.54% pdr=1.00 mal_w=0.00 (29.2s)
+[clean_ideal__fedavg r  9/30] acc= 37.06% pdr=1.00 mal_w=0.00 (31.7s)
+[clean_ideal__fedavg r 10/30] acc= 37.96% pdr=1.00 mal_w=0.00 (31.6s)
+[clean_ideal__fedavg r 11/30] acc= 38.72% pdr=1.00 mal_w=0.00 (31.1s)
+[clean_ideal__fedavg r 12/30] acc= 38.06% pdr=1.00 mal_w=0.00 (31.2s)
+[clean_ideal__fedavg r 13/30] acc= 40.21% pdr=1.00 mal_w=0.00 (31.6s)
+[clean_ideal__fedavg r 14/30] acc= 40.59% pdr=1.00 mal_w=0.00 (32.0s)
+[clean_ideal__fedavg r 15/30] acc= 41.14% pdr=1.00 mal_w=0.00 (33.2s)
+[clean_ideal__fedavg r 16/30] acc= 41.81% pdr=1.00 mal_w=0.00 (33.4s)
+[clean_ideal__fedavg r 17/30] acc= 41.98% pdr=1.00 mal_w=0.00 (32.2s)
+[clean_ideal__fedavg r 18/30] acc= 42.94% pdr=1.00 mal_w=0.00 (32.6s)
+[clean_ideal__fedavg r 19/30] acc= 42.89% pdr=1.00 mal_w=0.00 (33.0s)
+[clean_ideal__fedavg r 20/30] acc= 42.77% pdr=1.00 mal_w=0.00 (33.0s)
+[clean_ideal__fedavg r 21/30] acc= 43.47% pdr=1.00 mal_w=0.00 (33.7s)
+[clean_ideal__fedavg r 22/30] acc= 44.51% pdr=1.00 mal_w=0.00 (31.2s)
+[clean_ideal__fedavg r 23/30] acc= 44.34% pdr=1.00 mal_w=0.00 (32.5s)
+[clean_ideal__fedavg r 24/30] acc= 45.12% pdr=1.00 mal_w=0.00 (32.2s)
+[clean_ideal__fedavg r 25/30] acc= 45.28% pdr=1.00 mal_w=0.00 (33.6s)
+[clean_ideal__fedavg r 26/30] acc= 46.24% pdr=1.00 mal_w=0.00 (35.5s)
+[clean_ideal__fedavg r 27/30] acc= 46.19% pdr=1.00 mal_w=0.00 (32.3s)
+[clean_ideal__fedavg r 28/30] acc= 46.06% pdr=1.00 mal_w=0.00 (32.7s)
+[clean_ideal__fedavg r 29/30] acc= 47.48% pdr=1.00 mal_w=0.00 (33.7s)
+[clean_ideal__fedavg r 30/30] acc= 46.56% pdr=1.00 mal_w=0.00 (34.8s)
+
+=== Baseline summary ===
+{
+  "name": "clean_ideal__fedavg",
+  "final_test_acc": 0.4656,
+  "best_test_acc": 0.4748,
+  "best_round": 29,
+  "mean_last5_test_acc": 0.46506,
+  "final_per_class_acc": {
+    "airplane": 0.4480000138282776,
+    "automobile": 0.33000001311302185,
+    "bird": 0.2840000092983246,
+    "cat": 0.0820000022649765,
+    "deer": 0.5019999742507935,
+    "dog": 0.2669999897480011,
+    "frog": 0.7239999771118164,
+    "horse": 0.6340000033378601,
+    "ship": 0.5889999866485596,
+    "truck": 0.7960000038146973
+  },
+  "total_time_min": 15.948130599657695
+}

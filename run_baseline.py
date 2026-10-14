@@ -67,6 +67,10 @@ def main(argv=None):
         root_client = DroneClient(-1, train_ds, ref_idx.numpy(), cfg, device)
         print(f"CCRA trusted reference set: {len(ref_idx)} images")
 
+    # Every drone (and the root set) now holds its own copy of its images, so the
+    # full training tensor is no longer needed; freeing it roughly halves RAM use.
+    del train_ds, splits
+
     server = FederatedServer(model, clients, test_ds, cfg, device, root_client=root_client)
     t0 = time.time()
     history = server.run(run_dir)

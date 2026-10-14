@@ -1,0 +1,20 @@
+{
+  "name": "attack_ideal__cosavg",
+  "final_test_acc": 0.3152,
+  "best_test_acc": 0.4519,
+  "best_round": 29,
+  "mean_last5_test_acc": 0.3658,
+  "final_per_class_acc": {
+    "airplane": 0.4259999990463257,
+    "automobile": 0.0,
+    "bird": 0.2409999966621399,
+    "cat": 0.6309999823570251,
+    "deer": 0.47999998927116394,
+    "dog": 0.03500000014901161,
+    "frog": 0.050999999046325684,
+    "horse": 0.3709999918937683,
+    "ship": 0.9079999923706055,
+    "truck": 0.008999999612569809
+  },
+  "total_time_min": 14.489883494377136
+}

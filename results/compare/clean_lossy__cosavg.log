@@ -1,0 +1,57 @@
+Device: cpu | torch 2.14.0+cpu
+Dataset: cifar10_aerial | train=50000 test=10000
+Channel: lossy | jammer targeting drones 2,5,9
+Swarm: 10 drones, partition=dirichlet, samples/drone min=1510 max=10871
+Model: TacticalEdgeCNN (156,074 params) | aggregator=cosavg
+[clean_lossy__cosavg r  1/30] acc= 21.62% pdr=0.70 mal_w=0.00 (33.4s)
+[clean_lossy__cosavg r  2/30] acc= 20.47% pdr=0.69 mal_w=0.00 (28.3s)
+[clean_lossy__cosavg r  3/30] acc= 25.19% pdr=0.70 mal_w=0.00 (32.2s)
+[clean_lossy__cosavg r  4/30] acc= 29.09% pdr=0.80 mal_w=0.00 (29.1s)
+[clean_lossy__cosavg r  5/30] acc= 30.28% pdr=0.75 mal_w=0.00 (29.1s)
+[clean_lossy__cosavg r  6/30] acc= 32.07% pdr=0.56 mal_w=0.00 (28.4s)
+[clean_lossy__cosavg r  7/30] acc= 33.01% pdr=0.52 mal_w=0.00 (28.6s)
+[clean_lossy__cosavg r  8/30] acc= 34.36% pdr=0.61 mal_w=0.00 (28.5s)
+[clean_lossy__cosavg r  9/30] acc= 35.05% pdr=0.63 mal_w=0.00 (28.8s)
+[clean_lossy__cosavg r 10/30] acc= 36.12% pdr=0.69 mal_w=0.00 (29.3s)
+[clean_lossy__cosavg r 11/30] acc= 37.76% pdr=0.75 mal_w=0.00 (27.4s)
+[clean_lossy__cosavg r 12/30] acc= 36.95% pdr=0.80 mal_w=0.00 (28.5s)
+[clean_lossy__cosavg r 13/30] acc= 39.17% pdr=0.81 mal_w=0.00 (27.9s)
+[clean_lossy__cosavg r 14/30] acc= 38.57% pdr=0.67 mal_w=0.00 (27.9s)
+[clean_lossy__cosavg r 15/30] acc= 39.66% pdr=0.61 mal_w=0.00 (27.9s)
+[clean_lossy__cosavg r 16/30] acc= 40.95% pdr=0.68 mal_w=0.00 (28.1s)
+[clean_lossy__cosavg r 17/30] acc= 40.46% pdr=0.77 mal_w=0.00 (28.1s)
+[clean_lossy__cosavg r 18/30] acc= 41.38% pdr=0.67 mal_w=0.00 (32.4s)
+[clean_lossy__cosavg r 19/30] acc= 42.07% pdr=0.57 mal_w=0.00 (29.6s)
+[clean_lossy__cosavg r 20/30] acc= 43.94% pdr=0.51 mal_w=0.00 (32.0s)
+[clean_lossy__cosavg r 21/30] acc= 40.76% pdr=0.62 mal_w=0.00 (30.9s)
+[clean_lossy__cosavg r 22/30] acc= 45.09% pdr=0.71 mal_w=0.00 (29.9s)
+[clean_lossy__cosavg r 23/30] acc= 43.40% pdr=0.72 mal_w=0.00 (30.1s)
+[clean_lossy__cosavg r 24/30] acc= 42.54% pdr=0.64 mal_w=0.00 (30.5s)
+[clean_lossy__cosavg r 25/30] acc= 47.26% pdr=0.43 mal_w=0.00 (31.0s)
+[clean_lossy__cosavg r 26/30] acc= 45.43% pdr=0.68 mal_w=0.00 (30.3s)
+[clean_lossy__cosavg r 27/30] acc= 45.10% pdr=0.84 mal_w=0.00 (30.6s)
+[clean_lossy__cosavg r 28/30] acc= 45.54% pdr=0.51 mal_w=0.00 (30.3s)
+[clean_lossy__cosavg r 29/30] acc= 46.52% pdr=0.70 mal_w=0.00 (30.3s)
+[clean_lossy__cosavg r 30/30] acc= 45.40% pdr=0.62 mal_w=0.00 (30.9s)
+
+=== Baseline summary ===
+{
+  "name": "clean_lossy__cosavg",
+  "final_test_acc": 0.454,
+  "best_test_acc": 0.4726,
+  "best_round": 25,
+  "mean_last5_test_acc": 0.45598,
+  "final_per_class_acc": {
+    "airplane": 0.6069999933242798,
+    "automobile": 0.08699999749660492,
+    "bird": 0.22200000286102295,
+    "cat": 0.0020000000949949026,
+    "deer": 0.3700000047683716,
+    "dog": 0.39100000262260437,
+    "frog": 0.7239999771118164,
+    "horse": 0.699999988079071,
+    "ship": 0.593999981880188,
+    "truck": 0.8429999947547913
+  },
+  "total_time_min": 14.840125970045726
+}

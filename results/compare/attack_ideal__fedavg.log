@@ -1,0 +1,58 @@
+Device: cpu | torch 2.14.0+cpu
+Dataset: cifar10_aerial | train=50000 test=10000
+Attack: label_flip on drones 0,3,6
+Channel: ideal
+Swarm: 10 drones, partition=dirichlet, samples/drone min=1510 max=10871
+Model: TacticalEdgeCNN (156,074 params) | aggregator=fedavg
+[attack_ideal__fedavg r  1/30] acc= 10.25% pdr=1.00 mal_w=0.26 (32.6s)
+[attack_ideal__fedavg r  2/30] acc= 17.61% pdr=1.00 mal_w=0.26 (34.7s)
+[attack_ideal__fedavg r  3/30] acc= 19.37% pdr=1.00 mal_w=0.26 (32.8s)
+[attack_ideal__fedavg r  4/30] acc= 20.47% pdr=1.00 mal_w=0.26 (31.8s)
+[attack_ideal__fedavg r  5/30] acc= 22.95% pdr=1.00 mal_w=0.26 (31.7s)
+[attack_ideal__fedavg r  6/30] acc= 24.03% pdr=1.00 mal_w=0.26 (28.3s)
+[attack_ideal__fedavg r  7/30] acc= 25.16% pdr=1.00 mal_w=0.26 (28.8s)
+[attack_ideal__fedavg r  8/30] acc= 26.66% pdr=1.00 mal_w=0.26 (28.2s)
+[attack_ideal__fedavg r  9/30] acc= 27.51% pdr=1.00 mal_w=0.26 (28.1s)
+[attack_ideal__fedavg r 10/30] acc= 27.08% pdr=1.00 mal_w=0.26 (28.1s)
+[attack_ideal__fedavg r 11/30] acc= 29.65% pdr=1.00 mal_w=0.26 (27.8s)
+[attack_ideal__fedavg r 12/30] acc= 30.25% pdr=1.00 mal_w=0.26 (28.1s)
+[attack_ideal__fedavg r 13/30] acc= 29.69% pdr=1.00 mal_w=0.26 (28.3s)
+[attack_ideal__fedavg r 14/30] acc= 32.56% pdr=1.00 mal_w=0.26 (28.3s)
+[attack_ideal__fedavg r 15/30] acc= 32.62% pdr=1.00 mal_w=0.26 (27.9s)
+[attack_ideal__fedavg r 16/30] acc= 32.69% pdr=1.00 mal_w=0.26 (28.1s)
+[attack_ideal__fedavg r 17/30] acc= 35.12% pdr=1.00 mal_w=0.26 (27.9s)
+[attack_ideal__fedavg r 18/30] acc= 33.30% pdr=1.00 mal_w=0.26 (27.9s)
+[attack_ideal__fedavg r 19/30] acc= 34.02% pdr=1.00 mal_w=0.26 (28.0s)
+[attack_ideal__fedavg r 20/30] acc= 35.91% pdr=1.00 mal_w=0.26 (29.4s)
+[attack_ideal__fedavg r 21/30] acc= 35.90% pdr=1.00 mal_w=0.26 (28.1s)
+[attack_ideal__fedavg r 22/30] acc= 33.87% pdr=1.00 mal_w=0.26 (28.3s)
+[attack_ideal__fedavg r 23/30] acc= 37.01% pdr=1.00 mal_w=0.26 (28.4s)
+[attack_ideal__fedavg r 24/30] acc= 34.70% pdr=1.00 mal_w=0.26 (28.1s)
+[attack_ideal__fedavg r 25/30] acc= 36.19% pdr=1.00 mal_w=0.26 (28.4s)
+[attack_ideal__fedavg r 26/30] acc= 36.64% pdr=1.00 mal_w=0.26 (27.7s)
+[attack_ideal__fedavg r 27/30] acc= 37.09% pdr=1.00 mal_w=0.26 (28.2s)
+[attack_ideal__fedavg r 28/30] acc= 38.59% pdr=1.00 mal_w=0.26 (27.8s)
+[attack_ideal__fedavg r 29/30] acc= 36.82% pdr=1.00 mal_w=0.26 (28.2s)
+[attack_ideal__fedavg r 30/30] acc= 39.03% pdr=1.00 mal_w=0.26 (27.8s)
+
+=== Baseline summary ===
+{
+  "name": "attack_ideal__fedavg",
+  "final_test_acc": 0.3903,
+  "best_test_acc": 0.3903,
+  "best_round": 30,
+  "mean_last5_test_acc": 0.37634,
+  "final_per_class_acc": {
+    "airplane": 0.4519999921321869,
+    "automobile": 0.028999999165534973,
+    "bird": 0.3089999854564667,
+    "cat": 0.5339999794960022,
+    "deer": 0.4480000138282776,
+    "dog": 0.052000001072883606,
+    "frog": 0.21699999272823334,
+    "horse": 0.5360000133514404,
+    "ship": 0.8769999742507935,
+    "truck": 0.4490000009536743
+  },
+  "total_time_min": 14.466986203193665
+}

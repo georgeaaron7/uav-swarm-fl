@@ -6,10 +6,12 @@ realisation. Only the aggregation rule changes.
 
     python run_experiments.py              # run the full matrix (4 runs in parallel)
     python run_experiments.py --only attack_lossy
+    python run_experiments.py --seeds 1 2 3 --rounds 50 --out-dir results/multiseed
 """
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 import time
@@ -31,9 +33,9 @@ SCENARIOS = {
 
 
 def run(job):
-    name, args = job
+    out_dir, name, args = job
     t0 = time.time()
-    with open(f"results/compare/{name}.log", "w") as log:
+    with open(os.path.join(out_dir, f"{name}.log"), "w") as log:
         rc = subprocess.call([sys.executable, "run_baseline.py", "--name", name] + args,
                              stdout=log, stderr=subprocess.STDOUT)
     print(f"{'OK ' if rc == 0 else 'FAIL'} {name} ({(time.time() - t0) / 60:.1f} min)", flush=True)
@@ -45,17 +47,26 @@ def main():
     p.add_argument("--only", nargs="*", default=None)
     p.add_argument("--parallel", type=int, default=4)
     p.add_argument("--aggs", nargs="*", default=None)
+    p.add_argument("--seeds", nargs="*", type=int, default=[42])
+    p.add_argument("--rounds", type=int, default=30)
+    p.add_argument("--out-dir", default="results/compare")
     a = p.parse_args()
-    import os
-    os.makedirs("results/compare", exist_ok=True)
     jobs = []
-    for scen, (extra, aggs) in SCENARIOS.items():
-        if a.only and scen not in a.only:
-            continue
-        for agg in aggs:
-            if a.aggs and agg not in a.aggs:
+    for seed in a.seeds:
+        # one seed -> results go straight into out_dir; several -> out_dir/seed<N>/
+        out_dir = a.out_dir if len(a.seeds) == 1 else os.path.join(a.out_dir, f"seed{seed}")
+        os.makedirs(out_dir, exist_ok=True)
+        for scen, (extra, aggs) in SCENARIOS.items():
+            if a.only and scen not in a.only:
                 continue
-            jobs.append((f"{scen}__{agg}", COMMON + extra + ["--aggregator", agg]))
+            for agg in aggs:
+                if a.aggs and agg not in a.aggs:
+                    continue
+                name = f"{scen}__{agg}"
+                if os.path.exists(os.path.join(out_dir, name, "history.json")):
+                    continue  # already finished (lets an interrupted batch resume)
+                jobs.append((out_dir, name, COMMON + extra + [
+                    "--aggregator", agg, "--seed", str(seed), "--rounds", str(a.rounds), "--out-dir", out_dir]))
     print(f"{len(jobs)} runs, {a.parallel} in parallel", flush=True)
     with ThreadPoolExecutor(a.parallel) as ex:
         rcs = list(ex.map(run, jobs))

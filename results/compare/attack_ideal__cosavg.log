@@ -1,0 +1,58 @@
+Device: cpu | torch 2.14.0+cpu
+Dataset: cifar10_aerial | train=50000 test=10000
+Attack: label_flip on drones 0,3,6
+Channel: ideal
+Swarm: 10 drones, partition=dirichlet, samples/drone min=1510 max=10871
+Model: TacticalEdgeCNN (156,074 params) | aggregator=cosavg
+[attack_ideal__cosavg r  1/30] acc= 12.25% pdr=1.00 mal_w=0.24 (32.9s)
+[attack_ideal__cosavg r  2/30] acc= 17.00% pdr=1.00 mal_w=0.24 (34.8s)
+[attack_ideal__cosavg r  3/30] acc= 21.94% pdr=1.00 mal_w=0.19 (32.7s)
+[attack_ideal__cosavg r  4/30] acc= 20.41% pdr=1.00 mal_w=0.21 (31.7s)
+[attack_ideal__cosavg r  5/30] acc= 28.82% pdr=1.00 mal_w=0.18 (31.4s)
+[attack_ideal__cosavg r  6/30] acc= 24.47% pdr=1.00 mal_w=0.24 (28.8s)
+[attack_ideal__cosavg r  7/30] acc= 31.53% pdr=1.00 mal_w=0.17 (29.0s)
+[attack_ideal__cosavg r  8/30] acc= 27.40% pdr=1.00 mal_w=0.22 (28.0s)
+[attack_ideal__cosavg r  9/30] acc= 34.07% pdr=1.00 mal_w=0.20 (28.1s)
+[attack_ideal__cosavg r 10/30] acc= 28.69% pdr=1.00 mal_w=0.23 (28.3s)
+[attack_ideal__cosavg r 11/30] acc= 36.53% pdr=1.00 mal_w=0.16 (28.3s)
+[attack_ideal__cosavg r 12/30] acc= 31.72% pdr=1.00 mal_w=0.26 (27.7s)
+[attack_ideal__cosavg r 13/30] acc= 36.79% pdr=1.00 mal_w=0.15 (28.4s)
+[attack_ideal__cosavg r 14/30] acc= 33.04% pdr=1.00 mal_w=0.26 (28.1s)
+[attack_ideal__cosavg r 15/30] acc= 39.26% pdr=1.00 mal_w=0.14 (28.4s)
+[attack_ideal__cosavg r 16/30] acc= 30.97% pdr=1.00 mal_w=0.28 (28.2s)
+[attack_ideal__cosavg r 17/30] acc= 41.27% pdr=1.00 mal_w=0.08 (28.4s)
+[attack_ideal__cosavg r 18/30] acc= 26.61% pdr=1.00 mal_w=0.34 (28.1s)
+[attack_ideal__cosavg r 19/30] acc= 42.22% pdr=1.00 mal_w=0.02 (28.0s)
+[attack_ideal__cosavg r 20/30] acc= 26.95% pdr=1.00 mal_w=0.35 (29.9s)
+[attack_ideal__cosavg r 21/30] acc= 42.42% pdr=1.00 mal_w=0.02 (27.7s)
+[attack_ideal__cosavg r 22/30] acc= 28.26% pdr=1.00 mal_w=0.36 (28.0s)
+[attack_ideal__cosavg r 23/30] acc= 42.34% pdr=1.00 mal_w=0.03 (27.9s)
+[attack_ideal__cosavg r 24/30] acc= 29.29% pdr=1.00 mal_w=0.35 (28.1s)
+[attack_ideal__cosavg r 25/30] acc= 43.95% pdr=1.00 mal_w=0.02 (28.2s)
+[attack_ideal__cosavg r 26/30] acc= 30.53% pdr=1.00 mal_w=0.34 (28.1s)
+[attack_ideal__cosavg r 27/30] acc= 44.10% pdr=1.00 mal_w=0.04 (28.2s)
+[attack_ideal__cosavg r 28/30] acc= 31.56% pdr=1.00 mal_w=0.35 (27.9s)
+[attack_ideal__cosavg r 29/30] acc= 45.19% pdr=1.00 mal_w=0.04 (28.3s)
+[attack_ideal__cosavg r 30/30] acc= 31.52% pdr=1.00 mal_w=0.36 (27.8s)
+
+=== Baseline summary ===
+{
+  "name": "attack_ideal__cosavg",
+  "final_test_acc": 0.3152,
+  "best_test_acc": 0.4519,
+  "best_round": 29,
+  "mean_last5_test_acc": 0.3658,
+  "final_per_class_acc": {
+    "airplane": 0.4259999990463257,
+    "automobile": 0.0,
+    "bird": 0.2409999966621399,
+    "cat": 0.6309999823570251,
+    "deer": 0.47999998927116394,
+    "dog": 0.03500000014901161,
+    "frog": 0.050999999046325684,
+    "horse": 0.3709999918937683,
+    "ship": 0.9079999923706055,
+    "truck": 0.008999999612569809
+  },
+  "total_time_min": 14.489883494377136
+}

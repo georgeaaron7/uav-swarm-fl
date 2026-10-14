@@ -1,0 +1,59 @@
+Device: cpu | torch 2.14.0+cpu
+Dataset: cifar10_aerial | train=50000 test=10000
+Attack: label_flip on drones 0,3,6
+Channel: ideal
+Swarm: 10 drones, partition=dirichlet, samples/drone min=1510 max=10871
+Model: TacticalEdgeCNN (156,074 params) | aggregator=ccra
+CCRA trusted reference set: 500 images
+[attack_ideal__ccra r  1/30] acc= 10.71% pdr=1.00 mal_w=0.19 (32.9s)
+[attack_ideal__ccra r  2/30] acc= 21.33% pdr=1.00 mal_w=0.00 (35.1s)
+[attack_ideal__ccra r  3/30] acc= 26.16% pdr=1.00 mal_w=0.00 (33.1s)
+[attack_ideal__ccra r  4/30] acc= 25.45% pdr=1.00 mal_w=0.00 (32.3s)
+[attack_ideal__ccra r  5/30] acc= 30.42% pdr=1.00 mal_w=0.00 (31.4s)
+[attack_ideal__ccra r  6/30] acc= 29.61% pdr=1.00 mal_w=0.00 (28.6s)
+[attack_ideal__ccra r  7/30] acc= 31.60% pdr=1.00 mal_w=0.14 (29.0s)
+[attack_ideal__ccra r  8/30] acc= 33.31% pdr=1.00 mal_w=0.00 (28.2s)
+[attack_ideal__ccra r  9/30] acc= 29.27% pdr=1.00 mal_w=0.17 (28.1s)
+[attack_ideal__ccra r 10/30] acc= 34.56% pdr=1.00 mal_w=0.02 (28.2s)
+[attack_ideal__ccra r 11/30] acc= 32.42% pdr=1.00 mal_w=0.09 (28.1s)
+[attack_ideal__ccra r 12/30] acc= 36.88% pdr=1.00 mal_w=0.00 (28.0s)
+[attack_ideal__ccra r 13/30] acc= 37.16% pdr=1.00 mal_w=0.00 (28.1s)
+[attack_ideal__ccra r 14/30] acc= 36.74% pdr=1.00 mal_w=0.00 (28.2s)
+[attack_ideal__ccra r 15/30] acc= 38.77% pdr=1.00 mal_w=0.00 (28.4s)
+[attack_ideal__ccra r 16/30] acc= 37.88% pdr=1.00 mal_w=0.00 (28.2s)
+[attack_ideal__ccra r 17/30] acc= 39.61% pdr=1.00 mal_w=0.00 (28.1s)
+[attack_ideal__ccra r 18/30] acc= 39.94% pdr=1.00 mal_w=0.00 (27.9s)
+[attack_ideal__ccra r 19/30] acc= 36.59% pdr=1.00 mal_w=0.22 (28.2s)
+[attack_ideal__ccra r 20/30] acc= 41.21% pdr=1.00 mal_w=0.00 (29.6s)
+[attack_ideal__ccra r 21/30] acc= 40.12% pdr=1.00 mal_w=0.04 (28.0s)
+[attack_ideal__ccra r 22/30] acc= 41.63% pdr=1.00 mal_w=0.02 (28.0s)
+[attack_ideal__ccra r 23/30] acc= 40.47% pdr=1.00 mal_w=0.03 (28.6s)
+[attack_ideal__ccra r 24/30] acc= 42.62% pdr=1.00 mal_w=0.00 (27.9s)
+[attack_ideal__ccra r 25/30] acc= 42.43% pdr=1.00 mal_w=0.10 (28.3s)
+[attack_ideal__ccra r 26/30] acc= 41.04% pdr=1.00 mal_w=0.00 (28.2s)
+[attack_ideal__ccra r 27/30] acc= 44.15% pdr=1.00 mal_w=0.00 (28.1s)
+[attack_ideal__ccra r 28/30] acc= 42.32% pdr=1.00 mal_w=0.00 (28.2s)
+[attack_ideal__ccra r 29/30] acc= 44.65% pdr=1.00 mal_w=0.00 (28.3s)
+[attack_ideal__ccra r 30/30] acc= 44.13% pdr=1.00 mal_w=0.00 (27.2s)
+
+=== Baseline summary ===
+{
+  "name": "attack_ideal__ccra",
+  "final_test_acc": 0.4413,
+  "best_test_acc": 0.4465,
+  "best_round": 29,
+  "mean_last5_test_acc": 0.43258,
+  "final_per_class_acc": {
+    "airplane": 0.460999995470047,
+    "automobile": 0.0430000014603138,
+    "bird": 0.32600000500679016,
+    "cat": 0.22599999606609344,
+    "deer": 0.5320000052452087,
+    "dog": 0.16300000250339508,
+    "frog": 0.5199999809265137,
+    "horse": 0.6359999775886536,
+    "ship": 0.7099999785423279,
+    "truck": 0.7960000038146973
+  },
+  "total_time_min": 14.51345047156016
+}
