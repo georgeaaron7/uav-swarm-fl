@@ -68,8 +68,9 @@ def main():
     fig, ax = plt.subplots(figsize=(10, 4.2))
     width = 0.8 / len(aggs)
     for i, agg in enumerate(aggs):
-        vals = [final_acc(runs[(s, agg)]) if (s, agg) in runs else 0 for s in scens]
-        bars = ax.bar(np.arange(len(scens)) + i * width, vals, width, label=AGG_LABELS[agg], color=COLORS[agg])
+        idx = [j for j, s in enumerate(scens) if (s, agg) in runs]  # skip scenarios not run for this method
+        vals = [final_acc(runs[(scens[j], agg)]) for j in idx]
+        bars = ax.bar(np.arange(len(scens))[idx] + i * width, vals, width, label=AGG_LABELS[agg], color=COLORS[agg])
         ax.bar_label(bars, fmt="%.1f", fontsize=7)
     ax.set_xticks(np.arange(len(scens)) + width * (len(aggs) - 1) / 2)
     ax.set_xticklabels([SCEN_TITLES[s] for s in scens], fontsize=8)
@@ -105,7 +106,7 @@ def main():
     lines = ["| Scenario | " + " | ".join(AGG_LABELS[a] for a in aggs) + " |",
              "|---|" + "---|" * len(aggs)]
     for sc in scens:
-        cells = [f"{final_acc(runs[(sc, a)]):.2f}" if (sc, a) in runs else "–" for a in aggs]
+        cells = [f"{final_acc(runs[(sc, a)]):.2f}" if (sc, a) in runs else "-" for a in aggs]
         lines.append(f"| {SCEN_TITLES[sc]} | " + " | ".join(cells) + " |")
     mal = ["", "Average weight given to malicious drones (last 10 rounds):", ""]
     for sc in ("attack_ideal", "attack_lossy"):
