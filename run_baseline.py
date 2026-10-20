@@ -107,6 +107,11 @@ def main(argv=None):
             "total_samples": int(len(root_idx)),
             "excluded_from_all_client_partitions": True,
             "used_by_aggregator": cfg.aggregator in {"ccra", "ccra_noctx", "fltrust"},
+            "fltrust_step_policy": (
+                "repeat the root set to match the median optimizer-step count of "
+                "the received clients in each cell"
+                if cfg.aggregator == "fltrust" else None
+            ),
         },
     }
     with open(os.path.join(run_dir, "assumptions.json"), "w") as f:

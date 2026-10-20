@@ -113,6 +113,14 @@ class FederatedServer:
             return self.aggregator.aggregate(updates, root=root)
         return self.aggregator.aggregate(updates)
 
+    def _fltrust_root_steps(self, updates: list[dict]) -> int:
+        """Match FLTrust's root update to a typical client's optimizer budget."""
+        client_steps = [
+            self.cfg.local_epochs * math.ceil(update["n"] / self.cfg.batch_size)
+            for update in updates
+        ]
+        return max(1, math.ceil(float(np.median(client_steps))))
+
     def _cell_population_weights(self) -> dict[int, float]:
         populations = {
             bs: sum(c.num_samples for c in self.clients if self.topology.serving[c.client_id] == bs)
@@ -262,12 +270,20 @@ class FederatedServer:
                 }
                 edge_vector = flatten(edge_state)
                 root = None
+                root_optimizer_steps = None
                 if getattr(self.aggregator, "needs_root", False):
                     if self.root_client is None:
                         raise RuntimeError(f"{cfg.aggregator} requires a trusted root client")
-                    root = flatten(self.root_client.local_train(
-                        edge_model, seed=self._training_seed(rnd, -1)
-                    ).state_dict) - edge_vector
+                    root_optimizer_steps = (
+                        self._fltrust_root_steps(updates)
+                        if cfg.aggregator == "fltrust" else None
+                    )
+                    root_update = self.root_client.local_train(
+                        edge_model,
+                        seed=self._training_seed(rnd, -1),
+                        num_steps=root_optimizer_steps,
+                    )
+                    root = flatten(root_update.state_dict) - edge_vector
                 aggregate, info = self._aggregate(updates, root)
                 if not torch.isfinite(aggregate).all():
                     raise NumericalDivergenceError(rnd, f"base station {bs} aggregation")
@@ -297,6 +313,10 @@ class FederatedServer:
                     "robustness_bound_violated": bound_violated,
                     **({"fallback": info["fallback"]} if "fallback" in info else {}),
                     **({"effective_f": info["effective_f"]} if "effective_f" in info else {}),
+                    **(
+                        {"root_optimizer_steps": root_optimizer_steps}
+                        if root_optimizer_steps is not None else {}
+                    ),
                 }
 
             should_sync = (

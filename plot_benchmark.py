@@ -22,7 +22,12 @@ def accuracy_heatmap(rows: list[dict], out: Path) -> None:
     for i, scenario in enumerate(scenarios):
         for j, aggregator in enumerate(aggregators):
             if (scenario, aggregator) in lookup:
-                values[i, j] = 100 * float(lookup[scenario, aggregator]["final_test_acc_mean"])
+                row = lookup[scenario, aggregator]
+                accuracy_field = (
+                    "final_test_acc_all_runs_mean"
+                    if "final_test_acc_all_runs_mean" in row else "final_test_acc_mean"
+                )
+                values[i, j] = 100 * float(row[accuracy_field])
 
     width = max(8, 1.1 * len(aggregators))
     height = max(4, 0.55 * len(scenarios))
@@ -30,7 +35,7 @@ def accuracy_heatmap(rows: list[dict], out: Path) -> None:
     image = ax.imshow(values, aspect="auto", cmap="viridis", vmin=0, vmax=100)
     ax.set_xticks(range(len(aggregators)), aggregators, rotation=35, ha="right")
     ax.set_yticks(range(len(scenarios)), scenarios)
-    ax.set_title("Final test accuracy across benchmark scenarios")
+    ax.set_title("All-run test accuracy across benchmark scenarios")
     for i in range(len(scenarios)):
         for j in range(len(aggregators)):
             if np.isfinite(values[i, j]):

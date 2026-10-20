@@ -222,8 +222,10 @@ class CCRA:
        rho_k removes that expected drop, so legitimate noise is not punished.
     4. Behaviour score: B_k = clip(c_k / median(positive c), 0, 1). Flipped-label
        updates point away from the trusted direction (c < 0) and get B = 0.
-    5. Reputation: T_k <- beta * T_k + (1 - beta) * B_k (memory across rounds).
-       Drones with T_k < gate are excluded.
+    5. Reputation: negative evidence is applied at full EMA strength so a weak
+       or adversarial link cannot shield bad behaviour. Channel evidence only
+       slows rewards when B_k improves on the previous reputation. Drones with
+       T_k < gate are excluded.
     6. Norm clipping to the median per-coordinate RMS (stops scaling attacks).
     7. Masked weighted average: each coordinate is averaged only over the
        drones that delivered it (FedAvg / CosAvg dilute it with zeros).
@@ -272,14 +274,15 @@ class CCRA:
         pos = cal_t[cal_t > 0]
         med_c = float(pos.median()) if len(pos) else 0.0
 
-        # 4. behaviour score, 5. reputation. Poor links reduce the strength of
-        # the evidence rather than being treated as evidence of maliciousness.
+        # 4. behaviour score, 5. reputation. Poor links weaken only positive
+        # evidence; penalties apply at full strength so an attacker cannot
+        # evade detection by deliberately dropping packets.
         weights = {}
         for k, u in enumerate(updates):
             b = min(max(cal[k] / med_c, 0.0), 1.0) if med_c > 0 else 0.0
             prev = self.trust.get(u["id"], 1.0)
             context = u.get("ctx", {}) if use_context else {}
-            pdr = float(u["tel"].get("pdr", 1.0))
+            pdr = float(u["tel"].get("pdr", 1.0)) if use_context else 1.0
             reliability = float(context.get("reliability", 1.0))
             handover_factor = 0.5 if context.get("handover", False) else 1.0
             distance = float(context.get("distance_m", 0.0))
@@ -290,7 +293,7 @@ class CCRA:
                 pdr * reliability * handover_factor * geometry_factor * mobility_factor,
                 0.0,
             ), 1.0)
-            step = (1 - cfg.ccra_beta) * evidence
+            step = (1 - cfg.ccra_beta) * (evidence if b > prev else 1.0)
             t = prev + step * (b - prev)
             self.trust[u["id"]] = t
             stale = _stale_factor(u, cfg)

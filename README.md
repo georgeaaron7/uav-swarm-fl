@@ -293,10 +293,16 @@ clients' minibatches or augmentation. Krum's effective Byzantine count is
 limited by the number of updates received in a cell; cells with fewer than three
 updates use a recorded FedAvg fallback.
 
+For FLTrust, the 500-image root set is repeated until its optimizer-step count
+matches the median received client in that cell. This prevents FLTrust's norm
+rescaling from shrinking every client update merely because the root set is
+smaller.
+
 CCRA treats poor delivery, recent handover, and low historical link reliability
-as *weak evidence*, not evidence of maliciousness. These factors slow reputation
-changes, while gradient direction against the trusted root remains the behavioral
-signal. Stale updates are separately down-weighted.
+as weak support for *increasing* reputation, not as evidence of maliciousness.
+Negative behavioural evidence is applied at full EMA strength, so an attacker
+cannot preserve trust by dropping packets. `ccra_noctx` consumes neither PDR nor
+operational context. Stale updates are separately down-weighted.
 
 ### Reproducible evaluation
 
@@ -317,77 +323,29 @@ python plot_benchmark.py results/benchmark
 python analyze_channel_trace.py data/channel_traces/deepsense23.npz
 ```
 
-### Latest A100 benchmark results
+### Benchmark status
 
-The reviewed benchmark completed all **432 terminal runs**: 18 scenarios × 8
-aggregators × 3 deterministic seeds (41, 42, and 43), with 30 requested rounds
-per run. Training used an NVIDIA A100-SXM4-40GB, PyTorch 2.11.0, CUDA 12.8,
-and source commit `4a2e772`. The matrix covers clean training and five attacks
-(label flip, sign flip, Gaussian, ALIE, and IPM) under centralized ideal,
-synthetic HFL lossy, and DeepSense-driven HFL trace channels.
+The earlier 432-run A100 benchmark was trained at source commit `4a2e772`.
+Review found that its CCRA reputation update could let poor links shield bad
+behaviour, its `ccra_noctx` ablation still consumed PDR, and FLTrust used a much
+smaller optimizer-step budget for the trusted root update. Those results are
+therefore retained only as a superseded reproducibility artifact and **must not
+be used for defense rankings or for the claimed channel-context effect**.
 
-The following is a descriptive aggregate across attacked runs. Accuracy is
-averaged only across non-diverged runs; divergence is reported separately.
-Methods with many divergences therefore must not be ranked from accuracy alone.
+The corrected core matrix adds centralized-ideal and HFL-ideal cases alongside
+HFL-lossy and optional HFL-trace cases, so topology and channel effects can be
+contrasted separately. Synthetic mobility and fading also use independent RNG
+streams. A replacement benchmark must be run before reporting new numerical
+claims.
 
-| Aggregator | Mean attacked accuracy | Diverged attacked runs |
-|---|---:|---:|
-| **CCRA** | **41.8%** | 1/45 |
-| CCRA without context | 40.9% | **0/45** |
-| FedAvg | 37.5% | 9/45 |
-| CosAvg | 35.6% | 11/45 |
-| Trimmed Mean | 33.5% | 9/45 |
-| Multi-Krum | 30.8% | 10/45 |
-| Coordinate Median | 26.5% | 7/45 |
-| FLTrust | 16.8% | **0/45** |
-
-Across scenario-level means, CCRA ranked first in 11 of 18 scenarios. In the 44
-attacked seed/scenario pairs where both CCRA variants completed, channel context
-added a descriptive **+0.92 percentage points** on average and CCRA won 34/44
-pairs. This is an effect estimate, not a significance claim. The no-context
-ablation was more numerically stable: CCRA diverged for seed 43 in the
-sign-flip HFL-trace scenario, while the ablation completed every run.
-
-Clean runs show the expected robustness cost. FedAvg reached 46.1 ± 0.5% on the
-ideal channel and 45.3 ± 0.6% on the trace channel, compared with 45.1 ± 0.9%
-and 45.0 ± 1.1% for CCRA. The trace configuration was also milder than the
-synthetic lossy stress test: mean PDR was 0.939 versus 0.834, mean upload
-latency was 0.071 s versus 0.205 s, and runs recorded 1 versus 14 handovers.
-
-![A100 benchmark accuracy heatmap](results/benchmark_gpu/accuracy_heatmap.png)
-
-![A100 benchmark defense trade-off](results/benchmark_gpu/defense_tradeoff.png)
-
-The HFL results must be interpreted with cell-level population bounds. Among 30
-attacked HFL runs per method, robustness conditions were violated in 25 Median,
-30 Trimmed Mean, and 30 Multi-Krum runs; Multi-Krum also used an average of 18.9
-recorded FedAvg fallbacks per run. These are properties of the evaluated mobile
-cell composition, not implementation failures.
-
-Only three seeds were run, so the report uses mean ± sample standard deviation
-and makes no statistical-significance claim. Scenario 23 supplies a single-BS
-trace with relative, uncalibrated beam power; the 10 dB SNR anchor, additional
-virtual BSs, packet model, and multi-cell handovers remain explicit simulation
-assumptions. Results are also specific to aerial CIFAR-10, TacticalEdgeCNN, ten
-clients, the selected attacker placement, and 30 rounds.
-
-The complete review package contains a 432-row run table, 144-row aggregate
-table, plots, provenance markers, checkpoint hashes, and a compressed archive
-of every non-checkpoint run artifact. See
-[`results/benchmark_gpu/README.md`](results/benchmark_gpu/README.md) for the
-inventory and verification details.
-
-The analyzer produces `benchmark_summary.csv` and `BENCHMARK_SUMMARY.md` with
-mean and sample standard deviation across non-diverged seeds. Numerical
-divergence is a terminal experimental outcome: the run preserves its last
-known-good model, records the divergence round and stage, and reports a separate
-divergence rate rather than averaging an invalid accuracy or silently replacing
-it with chance performance. `benchmark_runs.csv` preserves one row per run so
-the aggregate report remains independently auditable.
+The analyzer now reports all-run accuracy first, assigning diverged CIFAR-10
+runs 10% chance accuracy, and a separate success-only accuracy column. Numerical
+divergence remains an explicit terminal outcome in the run-level output.
 
 The matrix includes centralized ideal-channel attacks as a controlled setting
 where 3 Byzantine clients out of 10 satisfy the usual Krum/median population
-conditions. HFL cases are a harder stress test: mobility can concentrate
+conditions. The HFL-ideal control isolates topology from synthetic channel loss.
+Other HFL cases are a harder stress test: mobility can concentrate
 attackers in a small cell, violating those guarantees. Each run records the
 maximum per-cell Byzantine fraction, Byzantine-majority cell count, and every
 Krum-to-FedAvg fallback. Median, trimmed-mean, and Krum population-bound

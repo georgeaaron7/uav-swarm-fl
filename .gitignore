@@ -19,3 +19,4 @@ results/trace_validation/
 # local extracted copy (including checkpoints) without adding thousands of
 # generated files to Git.
 results/benchmark_gpu/seed*/
+results/benchmark_gpu/benchmark_raw_results.tar.gz

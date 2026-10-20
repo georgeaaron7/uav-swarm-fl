@@ -53,7 +53,8 @@ class WirelessChannel:
         topology = self.topology
         topology.move(rnd)
         distances = topology.distances()
-        rng = np.random.default_rng(self.cfg.seed * 100_003 + rnd)
+        # Keep fading independent of SwarmTopology.move's mobility stream.
+        rng = np.random.default_rng(self.cfg.seed * 100_003 + rnd + 50_000_017)
         fading_db = 10 * np.log10(rng.exponential(1.0, size=distances.shape) + 1e-12)
         return self.cfg.tx_power_dbm - self._path_loss_db(distances) + fading_db
 

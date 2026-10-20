@@ -57,10 +57,14 @@ def scenario_matrix(trace_path: str, profile: str) -> dict[str, list[str]]:
     ]
     scenarios = {
         "clean_ideal": [],
+        "clean_hfl_ideal": common_hfl,
         "clean_hfl_lossy": common_hfl + ["--channel", "lossy", "--jammed-ids", JAMMED_IDS],
     }
     for attack in ATTACKS:
         scenarios[f"{attack}_ideal"] = [
+            "--attack", attack, "--malicious-ids", MALICIOUS_IDS,
+        ]
+        scenarios[f"{attack}_hfl_ideal"] = common_hfl + [
             "--attack", attack, "--malicious-ids", MALICIOUS_IDS,
         ]
         scenarios[f"{attack}_hfl_lossy"] = common_hfl + [

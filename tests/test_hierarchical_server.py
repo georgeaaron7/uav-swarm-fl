@@ -43,3 +43,12 @@ def test_hierarchical_server_runs_and_records_context(tmp_path):
     assert all("associations" in record for record in history)
     assert all(len(record["cells"]) == 2 for record in history)
     assert (tmp_path / "history.json").exists()
+
+
+def test_fltrust_root_uses_median_client_optimizer_step_count():
+    server = FederatedServer.__new__(FederatedServer)
+    server.cfg = FLConfig(local_epochs=2, batch_size=64)
+
+    steps = server._fltrust_root_steps([{"n": 500}, {"n": 4_500}, {"n": 4_600}])
+
+    assert steps == 142

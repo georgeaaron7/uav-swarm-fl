@@ -25,6 +25,8 @@ METRICS = (
     "total_time_min",
 )
 
+ACCURACY_METRICS = {"final_test_acc", "mean_last5_test_acc"}
+
 RUN_FIELDS = (
     "diverged",
     "divergence_round",
@@ -53,7 +55,15 @@ def find_summaries(root: Path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("root", type=Path, nargs="?", default=Path("results/benchmark"))
+    parser.add_argument(
+        "--chance-accuracy",
+        type=float,
+        default=0.10,
+        help="accuracy assigned to diverged runs in all-run accuracy columns",
+    )
     args = parser.parse_args()
+    if not 0.0 <= args.chance_accuracy <= 1.0:
+        raise SystemExit("--chance-accuracy must be in [0, 1]")
     groups = defaultdict(list)
     run_rows = []
     for scenario, aggregator, seed, summary in find_summaries(args.root):
@@ -104,6 +114,19 @@ def main():
                     values.append(value)
             row[f"{metric}_mean"] = statistics.fmean(values) if values else float("nan")
             row[f"{metric}_std"] = statistics.stdev(values) if len(values) > 1 else 0.0
+            if metric in ACCURACY_METRICS:
+                all_run_values = []
+                for summary in summaries:
+                    value = summary.get(metric)
+                    if summary.get("diverged", False) or value is None:
+                        value = args.chance_accuracy
+                    value = float(value)
+                    if math.isfinite(value):
+                        all_run_values.append(value)
+                row[f"{metric}_all_runs_mean"] = statistics.fmean(all_run_values)
+                row[f"{metric}_all_runs_std"] = (
+                    statistics.stdev(all_run_values) if len(all_run_values) > 1 else 0.0
+                )
         rows.append(row)
 
     csv_path = args.root / "benchmark_summary.csv"
@@ -116,13 +139,19 @@ def main():
     with md_path.open("w") as handle:
         handle.write("# Multi-seed benchmark summary\n\n")
         handle.write(
-            "Accuracy is reported as mean ± sample standard deviation across non-diverged seeds; "
-            "divergence is reported separately and is never silently imputed.\n\n"
+            f"All-run accuracy counts diverged runs as {100 * args.chance_accuracy:.1f}% "
+            "(chance for CIFAR-10). Success-only accuracy is shown separately, and "
+            "divergence remains explicit.\n\n"
         )
-        handle.write("| Scenario | Aggregator | Successful/total | Diverged | Final accuracy | PDR | Latency (s) | Handovers |\n")
-        handle.write("|---|---|---:|---:|---:|---:|---:|---:|\n")
+        handle.write("| Scenario | Aggregator | Successful/total | Diverged | All-run accuracy | Success-only accuracy | PDR | Latency (s) | Handovers |\n")
+        handle.write("|---|---|---:|---:|---:|---:|---:|---:|---:|\n")
         for row in rows:
-            accuracy = (
+            all_run_accuracy = (
+                f"{100 * row['final_test_acc_all_runs_mean']:.2f} ± "
+                f"{100 * row['final_test_acc_all_runs_std']:.2f}"
+                if math.isfinite(row["final_test_acc_all_runs_mean"]) else "—"
+            )
+            success_accuracy = (
                 f"{100 * row['final_test_acc_mean']:.2f} ± "
                 f"{100 * row['final_test_acc_std']:.2f}"
                 if math.isfinite(row["final_test_acc_mean"]) else "—"
@@ -130,7 +159,7 @@ def main():
             handle.write(
                 f"| {row['scenario']} | {row['aggregator']} | "
                 f"{row['successful_seeds']}/{row['seeds']} | {row['diverged_seeds']} | "
-                f"{accuracy} | "
+                f"{all_run_accuracy} | {success_accuracy} | "
                 f"{row['mean_pdr_mean']:.3f} | {row['mean_latency_s_mean']:.3f} | "
                 f"{row['total_handovers_mean']:.1f} |\n"
             )

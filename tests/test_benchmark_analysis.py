@@ -42,7 +42,11 @@ def test_analysis_separates_divergence_from_accuracy(tmp_path):
     assert row["diverged_seeds"] == "1"
     assert float(row["divergence_rate"]) == 0.5
     assert float(row["final_test_acc_mean"]) == 0.5
+    assert float(row["final_test_acc_all_runs_mean"]) == 0.3
     assert float(row["mean_pdr_mean"]) == 1.0
     assert len(run_rows) == 2
     assert [row["seed"] for row in run_rows] == ["41", "42"]
     assert [row["diverged"] for row in run_rows] == ["False", "True"]
+    report = (tmp_path / "BENCHMARK_SUMMARY.md").read_text()
+    assert "All-run accuracy" in report
+    assert "Success-only accuracy" in report

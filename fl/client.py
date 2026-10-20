@@ -78,8 +78,16 @@ class DroneClient:
             minlength=num_classes,
         ).tolist()
 
-    def local_train(self, global_model: nn.Module, seed: int | None = None) -> ClientUpdate:
+    def local_train(
+        self,
+        global_model: nn.Module,
+        seed: int | None = None,
+        num_steps: int | None = None,
+    ) -> ClientUpdate:
         cfg = self.cfg
+
+        if num_steps is not None and num_steps < 1:
+            raise ValueError("num_steps must be at least 1")
 
         # A client/round-specific seed prevents an extra trusted-root training
         # call from changing later clients' minibatches or augmentation.
@@ -115,7 +123,10 @@ class DroneClient:
         total_correct = 0
         total_seen = 0
 
-        for _ in range(cfg.local_epochs):
+        optimizer_steps = 0
+        epochs = cfg.local_epochs if num_steps is None else None
+        epoch = 0
+        while epochs is None or epoch < epochs:
             perm = torch.randperm(n, device=self.device)
 
             for start in range(0, n, cfg.batch_size):
@@ -134,6 +145,12 @@ class DroneClient:
                 total_loss += loss.item() * len(yb)
                 total_correct += (output.argmax(1) == yb).sum().item()
                 total_seen += len(yb)
+                optimizer_steps += 1
+                if num_steps is not None and optimizer_steps >= num_steps:
+                    break
+            epoch += 1
+            if num_steps is not None and optimizer_steps >= num_steps:
+                break
 
         local_state = {
             key: value.detach().cpu().clone()
@@ -160,5 +177,6 @@ class DroneClient:
             metrics={
                 "train_loss": total_loss / total_seen,
                 "train_acc": total_correct / total_seen,
+                "optimizer_steps": optimizer_steps,
             },
         )

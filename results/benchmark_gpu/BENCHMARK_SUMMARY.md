@@ -1,5 +1,9 @@
 # Multi-seed benchmark summary
 
+> **Superseded:** these values were produced by source commit `4a2e772` before
+> the CCRA, no-context ablation, and FLTrust methodology corrections. They are
+> retained for auditability and must not be used for comparative claims.
+
 Accuracy is reported as mean ± sample standard deviation across non-diverged seeds; divergence is reported separately and is never silently imputed.
 
 | Scenario | Aggregator | Successful/total | Diverged | Final accuracy | PDR | Latency (s) | Handovers |
