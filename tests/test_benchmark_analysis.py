@@ -18,13 +18,17 @@ def test_analysis_separates_divergence_from_accuracy(tmp_path):
         "total_robustness_bound_violating_cells": 0,
         "total_time_min": 1.0,
     }
-    for seed, diverged, accuracy in ((41, False, 0.5), (42, True, None)):
+    for seed, diverged, accuracy, pdr in (
+        (41, False, 0.5, 1.0),
+        (42, True, None, 0.2),
+    ):
         run_dir = tmp_path / f"seed{seed}" / "sign_flip_ideal__cosavg"
         run_dir.mkdir(parents=True)
         summary = metrics | {
             "diverged": diverged,
             "final_test_acc": accuracy,
             "mean_last5_test_acc": accuracy,
+            "mean_pdr": pdr,
         }
         (run_dir / "summary.json").write_text(json.dumps(summary))
 
@@ -36,3 +40,4 @@ def test_analysis_separates_divergence_from_accuracy(tmp_path):
     assert row["diverged_seeds"] == "1"
     assert float(row["divergence_rate"]) == 0.5
     assert float(row["final_test_acc_mean"]) == 0.5
+    assert float(row["mean_pdr_mean"]) == 1.0

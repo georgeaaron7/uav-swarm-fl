@@ -49,6 +49,9 @@ def main():
     rows = []
     for (scenario, aggregator), summaries in sorted(groups.items()):
         diverged = sum(bool(summary.get("diverged", False)) for summary in summaries)
+        completed_summaries = [
+            summary for summary in summaries if not summary.get("diverged", False)
+        ]
         row = {
             "scenario": scenario,
             "aggregator": aggregator,
@@ -59,7 +62,7 @@ def main():
         }
         for metric in METRICS:
             values = []
-            for summary in summaries:
+            for summary in completed_summaries:
                 value = summary.get(metric)
                 if value is None:
                     continue
