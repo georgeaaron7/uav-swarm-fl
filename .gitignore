@@ -13,3 +13,4 @@ data/
 results/smoke_test/
 results/*smoke*/
 results/benchmark/
+results/trace_validation/

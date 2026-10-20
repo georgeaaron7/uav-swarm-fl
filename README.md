@@ -232,10 +232,33 @@ python run_baseline.py \
   --aggregator ccra --attack sign_flip --malicious-ids 0,3,6
 ```
 
-The importer stores the maximum measured beam-power value and its source sample
-index. If the downloaded release needs an absolute-power calibration, apply an
-explicit offset with `--power-offset-db` during preparation or
-`--trace-rx-power-offset-db` at runtime; do not silently assume units.
+The downloaded Scenario 23 release stores positive, uncalibrated linear
+beam-power values—not absolute dBm. The importer converts the maximum beam value
+to dB on the dataset's arbitrary scale and retains its source sample index. The
+channel uses only variation relative to the dataset median. Absolute SNR is an
+explicit sensitivity parameter, `--trace-snr-reference-db` (default 15 dB), and
+`assumptions.json` records it. This avoids falsely presenting the raw values as
+calibrated received power. `--trace-stride` controls how many recorded samples
+the channel advances per FL round; trace time is not assumed to equal training
+wall-clock time. Sequence endpoints are replayed in reverse rather than wrapped
+last-to-first, avoiding a teleport discontinuity. The benchmark driver uses a
+stride of 5 and sequences of at least 200 samples so a 30-round run covers more
+mobility while retaining coherent flight segments.
+
+The [Scenario 23 dataset paper](https://doi.org/10.1109/OJCOMS.2025.3612320)
+reports height and controller-to-drone distance in feet; the
+preprocessor converts both to metres. The public material does not establish a
+safe SI unit for the speed field, so it is retained in source units and used
+only after normalization by the trace's 95th percentile. Flight fragments with
+fewer than `--trace-min-sequence-length` samples (default 50) are excluded from
+client replay.
+
+For trace-driven HFL, the automatic virtual-BS radius is half the 95th
+percentile horizontal range in the prepared trace. This places virtual cell
+boundaries inside the observed flight footprint instead of choosing an
+unrelated fixed scale; the synthetic scenario uses 30% of its configured area.
+Override the layout explicitly with `--bs-radius-m`. Link distance accounts for
+the Scenario 23 BS antenna's approximately 1.5 m mounting height.
 
 Scenario 23 is a **single-BS measurement**, so it does not directly contain
 multi-cell handovers. For additional simulated BSs, received power is adjusted
@@ -261,7 +284,11 @@ inside its serving cell. This assumption is written to `assumptions.json`.
 
 Available aggregators are `fedavg`, `cosavg`, `median`, `trimmed_mean`, `krum`,
 `multi_krum`, `fltrust`, `ccra`, and `ccra_noctx`. FLTrust and both CCRA variants
-use the same clean 500-image root dataset. Krum's effective Byzantine count is
+use the same clean 500-image root dataset. Those images are excluded from all
+client partitions for every aggregator, preventing train/root overlap and
+keeping the client data budget identical across methods. Client/round randomness
+is independently seeded, so root-update computation cannot perturb later
+clients' minibatches or augmentation. Krum's effective Byzantine count is
 limited by the number of updates received in a cell; cells with fewer than three
 updates use a recorded FedAvg fallback.
 
@@ -287,12 +314,28 @@ python run_experiments.py \
 
 python analyze_benchmark.py results/benchmark
 python plot_benchmark.py results/benchmark
+
+# Validate the real trace and its assumed absolute-SNR sensitivity first
+python analyze_channel_trace.py data/channel_traces/deepsense23.npz
 ```
 
 The analyzer produces `benchmark_summary.csv` and `BENCHMARK_SUMMARY.md` with
 mean and sample standard deviation across completed seeds. Full benchmark output
 is ignored by Git until results have been reviewed and deliberately selected for
 publication.
+
+The matrix includes centralized ideal-channel attacks as a controlled setting
+where 3 Byzantine clients out of 10 satisfy the usual Krum/median population
+conditions. HFL cases are a harder stress test: mobility can concentrate
+attackers in a small cell, violating those guarantees. Each run records the
+maximum per-cell Byzantine fraction, Byzantine-majority cell count, and every
+Krum-to-FedAvg fallback. Median, trimmed-mean, and Krum population-bound
+violations are counted explicitly. Krum's configured `f` is capped so its
+reported effective value always satisfies `n >= 2f + 3`; if the actual attacker
+count exceeds it, the cell is marked as violating the robustness bound. These
+are validity diagnostics, not hidden failures.
+Trace scenarios use an explicitly assumed 10 dB median-power SNR anchor; run the
+validation script's 5–25 dB sensitivity sweep before interpreting results.
 
 ### New implementation files
 

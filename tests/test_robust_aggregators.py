@@ -43,6 +43,17 @@ def test_krum_selects_cluster_member():
     ])
     assert info["selected"][0] in {0, 1, 2}
     assert info["weights"][3] == 0.0
+    assert info["effective_f"] == 0  # n=4 cannot satisfy n >= 2(1)+3
+
+
+def test_krum_effective_f_obeys_theoretical_population_bound():
+    aggregator = build_aggregator("multi_krum", FLConfig(krum_byzantine=3))
+    _, info = aggregator.aggregate([
+        update(0, [0.0]), update(1, [0.1]), update(2, [0.2]),
+        update(3, [0.3]), update(4, [10.0]), update(5, [11.0]),
+    ])
+    assert info["effective_f"] == 1
+    assert 6 >= 2 * info["effective_f"] + 3
 
 
 def test_fltrust_needs_and_uses_root_update():

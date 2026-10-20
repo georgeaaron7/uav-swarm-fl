@@ -159,9 +159,23 @@ def partition_dirichlet(targets: np.ndarray, num_clients: int, alpha: float, see
             return [np.sort(np.array(b)) for b in buckets]
 
 
-def partition(train_ds: TensorImageDataset, cfg) -> list[np.ndarray]:
+def partition(
+    train_ds: TensorImageDataset,
+    cfg,
+    eligible_indices: np.ndarray | None = None,
+) -> list[np.ndarray]:
+    eligible = (
+        np.arange(len(train_ds), dtype=int)
+        if eligible_indices is None else np.asarray(eligible_indices, dtype=int)
+    )
+    if eligible.ndim != 1 or len(eligible) == 0:
+        raise ValueError("eligible_indices must be a non-empty one-dimensional array")
     if cfg.partition == "iid":
-        return partition_iid(len(train_ds), cfg.num_clients, cfg.seed)
+        relative = partition_iid(len(eligible), cfg.num_clients, cfg.seed)
+        return [eligible[indices] for indices in relative]
     if cfg.partition == "dirichlet":
-        return partition_dirichlet(train_ds.targets.numpy(), cfg.num_clients, cfg.dirichlet_alpha, cfg.seed)
+        relative = partition_dirichlet(
+            train_ds.targets[eligible].numpy(), cfg.num_clients, cfg.dirichlet_alpha, cfg.seed
+        )
+        return [eligible[indices] for indices in relative]
     raise ValueError(f"Unknown partition '{cfg.partition}'")

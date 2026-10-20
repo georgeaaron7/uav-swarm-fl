@@ -33,7 +33,7 @@ def make_trace(path: Path):
         y_m=np.zeros(size),
         distance_m=np.linspace(10, 20, size),
         height_m=np.full(size, 10.0),
-        speed_mps=np.ones(size),
+        speed=np.ones(size),
         pitch_deg=np.zeros(size),
         roll_deg=np.zeros(size),
         sequence_id=np.ones(size, dtype=int),
@@ -48,7 +48,7 @@ def test_trace_channel_preserves_source_and_computes_latency(tmp_path):
     cfg = FLConfig(
         topology="centralized", num_clients=2, channel="trace",
         channel_trace_path=str(trace), noise_dbm=-90.0, bandwidth_hz=1e6,
-        round_deadline_s=10.0, noise_scale=0.0,
+        round_deadline_s=10.0, noise_scale=0.0, trace_min_sequence_length=1,
     )
     topology = SwarmTopology(cfg, 2)
     channel = WirelessChannel(cfg, 2, topology)
@@ -69,3 +69,45 @@ def test_trace_channel_requires_existing_file(tmp_path):
     topology = SwarmTopology(cfg, cfg.num_clients)
     with pytest.raises(FileNotFoundError):
         WirelessChannel(cfg, cfg.num_clients, topology)
+
+
+def test_trace_sequence_filter_and_stride(tmp_path):
+    trace = tmp_path / "trace.npz"
+    make_trace(trace)
+    cfg = FLConfig(
+        topology="centralized", num_clients=1, channel="trace",
+        channel_trace_path=str(trace), trace_min_sequence_length=2, trace_stride=2,
+    )
+    topology = SwarmTopology(cfg, 1)
+    channel = WirelessChannel(cfg, 1, topology)
+    first = channel.link_state(1)[0]["trace_source_index"]
+    second = channel.link_state(2)[0]["trace_source_index"]
+    assert second == (first + 2) % 6
+
+
+def test_trace_auto_scales_virtual_bs_layout(tmp_path):
+    trace = tmp_path / "trace.npz"
+    make_trace(trace)
+    cfg = FLConfig(
+        topology="hierarchical", num_base_stations=2, num_clients=1,
+        channel="trace", channel_trace_path=str(trace), trace_min_sequence_length=1,
+    )
+    topology = SwarmTopology(cfg, 1)
+    channel = WirelessChannel(cfg, 1, topology)
+    assert np.linalg.norm(topology.base_stations[1]) == pytest.approx(
+        channel.trace.virtual_bs_radius_m
+    )
+
+
+def test_trace_replay_reflects_at_sequence_boundary(tmp_path):
+    trace = tmp_path / "trace.npz"
+    make_trace(trace)
+    cfg = FLConfig(
+        topology="centralized", num_clients=1, channel="trace",
+        channel_trace_path=str(trace), trace_min_sequence_length=1, trace_stride=2,
+        seed=0,
+    )
+    topology = SwarmTopology(cfg, 1)
+    channel = WirelessChannel(cfg, 1, topology)
+    source_indices = [channel.link_state(rnd)[0]["trace_source_index"] for rnd in range(1, 7)]
+    assert source_indices == [0, 2, 4, 4, 2, 0]

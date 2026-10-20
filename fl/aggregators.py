@@ -135,7 +135,10 @@ class MultiKrum:
 
     def aggregate(self, updates):
         n = len(updates)
-        f = min(getattr(self.cfg, "krum_byzantine", 0), max(0, n - 3))
+        # Krum's robustness condition is n >= 2f + 3. Reducing f to
+        # floor((n-3)/2) keeps every reported effective_f theoretically valid;
+        # it does not claim protection if the actual attackers exceed that f.
+        f = min(getattr(self.cfg, "krum_byzantine", 0), max(0, (n - 3) // 2))
         neighbour_count = n - f - 2
         if neighbour_count < 1:
             raise ValueError("Krum requires at least f + 3 received updates")
@@ -281,8 +284,8 @@ class CCRA:
             handover_factor = 0.5 if context.get("handover", False) else 1.0
             distance = float(context.get("distance_m", 0.0))
             geometry_factor = 1.0 / (1.0 + distance / max(cfg.area_m, 1.0))
-            speed = abs(float(context.get("speed_mps", 0.0)))
-            mobility_factor = 1.0 / (1.0 + speed / 30.0)
+            speed_normalized = abs(float(context.get("trace_speed_normalized", 0.0)))
+            mobility_factor = 1.0 / (1.0 + speed_normalized)
             evidence = min(max(
                 pdr * reliability * handover_factor * geometry_factor * mobility_factor,
                 0.0,

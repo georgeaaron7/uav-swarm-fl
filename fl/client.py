@@ -78,8 +78,16 @@ class DroneClient:
             minlength=num_classes,
         ).tolist()
 
-    def local_train(self, global_model: nn.Module) -> ClientUpdate:
+    def local_train(self, global_model: nn.Module, seed: int | None = None) -> ClientUpdate:
         cfg = self.cfg
+
+        # A client/round-specific seed prevents an extra trusted-root training
+        # call from changing later clients' minibatches or augmentation.
+        if seed is not None:
+            torch.manual_seed(seed)
+            np.random.seed(seed % (2**32 - 1))
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed_all(seed)
 
         # Preserve the exact model state received from the server. The update
         # delta will be calculated relative to this state.

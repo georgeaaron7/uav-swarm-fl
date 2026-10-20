@@ -17,6 +17,10 @@ METRICS = (
     "total_handovers",
     "mean_honest_rejection_rate",
     "mean_attacker_acceptance_rate",
+    "mean_max_cell_byzantine_fraction",
+    "total_byzantine_majority_cells",
+    "total_krum_fallback_cells",
+    "total_robustness_bound_violating_cells",
     "total_time_min",
 )
 

@@ -28,6 +28,8 @@ class FLConfig:
     rounds: int = 50
     topology: str = "centralized"  # centralized | hierarchical
     num_base_stations: int = 3  # used by hierarchical topology
+    bs_radius_m: float = 0.0  # 0 = auto (trace footprint, or 30% synthetic area)
+    bs_height_m: float = 1.5
     global_sync_every: int = 5  # edge rounds between inter-BS synchronisations
     handover_hysteresis_db: float = 3.0
     handover_ttt: int = 2  # consecutive rounds before a handover is committed
@@ -60,7 +62,10 @@ class FLConfig:
     # --- wireless channel ---
     channel: str = "ideal"  # ideal | lossy | trace
     channel_trace_path: str = ""  # prepared .npz from scripts/prepare_deepsense23.py
-    trace_rx_power_offset_db: float = 0.0  # explicit calibration to dBm
+    trace_snr_reference_db: float = 15.0  # assumed SNR at median measured beam power
+    trace_snr_spread_scale: float = 1.0  # scale measured relative-power variation
+    trace_stride: int = 1  # recorded samples advanced per FL round
+    trace_min_sequence_length: int = 50  # reject calibration/aborted flight fragments
     jammed_ids: str = ""  # drones whose sector the EW jammer targets, e.g. "2,5,9"
     area_m: float = 800.0
     drone_alt_m: float = 100.0
@@ -81,6 +86,7 @@ class FLConfig:
     # --- evaluation ---
     eval_every: int = 1
     eval_batch_size: int = 512
+    root_samples_per_class: int = 50  # held out for fair root-based comparisons
 
     extra: dict = field(default_factory=dict)
 

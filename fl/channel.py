@@ -27,11 +27,21 @@ class WirelessChannel:
         self.mode = cfg.channel
         self.n = num_clients
         self.topology = topology
-        self.trace = ChannelTrace(cfg.channel_trace_path) if self.mode == "trace" else None
+        self.trace = (
+            ChannelTrace(cfg.channel_trace_path, cfg.trace_min_sequence_length)
+            if self.mode == "trace" else None
+        )
+        if (
+            self.trace is not None
+            and topology is not None
+            and cfg.bs_radius_m <= 0
+            and topology.num_base_stations > 1
+        ):
+            topology.set_base_station_radius(self.trace.virtual_bs_radius_m)
         self.jammed = set(parse_ids(cfg.jammed_ids))
         rng = np.random.default_rng(cfg.seed + 4321)
         self.jammer = None
-        if self.jammed and topology is not None:
+        if self.jammed and topology is not None and self.mode != "trace":
             ids = [cid for cid in self.jammed if 0 <= cid < num_clients]
             if ids:
                 self.jammer = topology.positions[ids].mean(axis=0) + rng.normal(0, 20, size=2)
@@ -48,21 +58,30 @@ class WirelessChannel:
         return self.cfg.tx_power_dbm - self._path_loss_db(distances) + fading_db
 
     def _trace_signal(self, rnd: int) -> tuple[np.ndarray, list[dict]]:
-        rows = self.trace.rows(self.n, rnd, self.cfg.seed)
+        rows = self.trace.rows(self.n, rnd, self.cfg.seed, self.cfg.trace_stride)
         xy = np.array([[r["x_m"], r["y_m"]] for r in rows], dtype=float)
         altitude = np.array([max(0.0, float(r["height_m"])) for r in rows])
         self.topology.set_trace_positions(xy, altitude)
         distances = self.topology.distances()
-        reference_distance = np.array(
-            [max(1.0, float(r["distance_m"])) for r in rows], dtype=float
-        )[:, None]
-        measured_dbm = np.array(
-            [float(r["rx_power_db"]) + self.cfg.trace_rx_power_offset_db for r in rows]
-        )[:, None]
+        # BS 0 is the physical measurement site. Using its geometry as the
+        # reference leaves that measured link unchanged; only virtual BS links
+        # receive a relative path-loss adjustment.
+        reference_distance = distances[:, [0]]
+        measured_relative_db = np.array([
+            float(r["rx_power_db"]) - self.trace.power_reference_db for r in rows
+        ], dtype=float)[:, None]
+        reference_snr_db = (
+            self.cfg.trace_snr_reference_db
+            + self.cfg.trace_snr_spread_scale * measured_relative_db
+        )
         relative_loss = 10.0 * self.cfg.pathloss_exp * np.log10(
             np.maximum(distances, 1.0) / reference_distance
         )
-        return measured_dbm - relative_loss, rows
+        # DeepSense power values are uncalibrated linear measurements. Only
+        # their relative dB variation is measured; the absolute SNR anchor is
+        # an explicit experiment assumption.
+        signal_dbm = self.cfg.noise_dbm + reference_snr_db - relative_loss
+        return signal_dbm, rows
 
     def link_state(self, rnd: int) -> list[dict]:
         topology = self.topology
@@ -72,6 +91,14 @@ class WirelessChannel:
         trace_rows = None
         if self.mode == "trace":
             signal_dbm, trace_rows = self._trace_signal(rnd)
+            if self.jammed and self.jammer is None:
+                affected = [cid for cid in self.jammed if 0 <= cid < self.n]
+                if affected:
+                    rng = np.random.default_rng(self.cfg.seed + 4321)
+                    self.jammer = (
+                        topology.positions[affected].mean(axis=0)
+                        + rng.normal(0, 20, size=2)
+                    )
         else:
             signal_dbm = self._synthetic_signal(rnd)
 
@@ -116,7 +143,13 @@ class WirelessChannel:
                     "trace_source_index": row["source_index"],
                     "trace_sequence_id": int(row["sequence_id"]),
                     "trace_timestamp_ms": float(row["timestamp_ms"]),
-                    "speed_mps": float(row["speed_mps"]),
+                    "trace_power_db_arbitrary": float(row["rx_power_db"]),
+                    "trace_power_rel_db": float(
+                        row["rx_power_db"] - self.trace.power_reference_db
+                    ),
+                    "trace_snr_reference_db": float(self.cfg.trace_snr_reference_db),
+                    "trace_speed": float(row["speed"]),
+                    "trace_speed_normalized": float(row["speed"] / self.trace.speed_reference),
                     "pitch_deg": float(row["pitch_deg"]),
                     "roll_deg": float(row["roll_deg"]),
                 })

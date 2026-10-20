@@ -13,6 +13,7 @@ import os
 import sys
 import time
 
+import numpy as np
 import torch
 
 from fl.client import DroneClient
@@ -46,7 +47,20 @@ def main(argv=None):
     train_ds, test_ds, num_classes = load_dataset(cfg.dataset, cfg.data_dir, cfg.seed)
     print(f"Dataset: {cfg.dataset} | train={len(train_ds)} test={len(test_ds)}")
 
-    splits = partition(train_ds, cfg)
+    if cfg.root_samples_per_class < 1:
+        raise ValueError("root_samples_per_class must be at least 1")
+    generator = torch.Generator().manual_seed(cfg.seed + 99)
+    root_idx = torch.cat([
+        (train_ds.targets == class_id).nonzero().flatten()[
+            torch.randperm(
+                int((train_ds.targets == class_id).sum()), generator=generator
+            )[:cfg.root_samples_per_class]
+        ]
+        for class_id in range(num_classes)
+    ])
+    root_numpy = root_idx.numpy()
+    eligible = np.setdiff1d(np.arange(len(train_ds)), root_numpy, assume_unique=False)
+    splits = partition(train_ds, cfg, eligible_indices=eligible)
     clients = [DroneClient(i, train_ds, idx, cfg, device) for i, idx in enumerate(splits)]
     if cfg.attack != "none":
         from fl.channel import parse_ids
@@ -65,11 +79,35 @@ def main(argv=None):
         "measured": ["DeepSense Scenario 23 beam power, GPS and IMU"] if cfg.channel == "trace" else [],
         "derived": ["SINR", "Shannon upload rate", "model upload latency", "deadline staleness"],
         "simulated": ["multi-cell topology", "handover", "packet errors", "jamming"],
+        "rate_model": (
+            "Shannon capacity upper bound; protocol overhead and retransmissions are excluded"
+        ),
+        "packet_error_model": "logistic PER curve around configured SINR threshold",
+        "staleness_model": (
+            "deadline excess is converted to round staleness; accept mode is a same-round "
+            "down-weighted approximation rather than an event-driven asynchronous queue"
+        ),
         "attacker_knowledge": "honest updates in serving cell" if cfg.attack in {"alie", "ipm"} else "local",
         "trace_limitation": (
-            "Scenario 23 is a measured single-BS trace; non-reference BS powers are distance-adjusted."
+            "Scenario 23 is a single-BS trace with uncalibrated linear beam power. "
+            "Only relative dB variation is measured; absolute SNR is assumed, and "
+            "non-reference BS powers are distance-adjusted."
             if cfg.channel == "trace" else None
         ),
+        "trace_snr_reference_db": cfg.trace_snr_reference_db if cfg.channel == "trace" else None,
+        "trace_snr_spread_scale": cfg.trace_snr_spread_scale if cfg.channel == "trace" else None,
+        "trace_stride": cfg.trace_stride if cfg.channel == "trace" else None,
+        "trace_replay": (
+            "one recorded flight sequence per simulated client with deterministic phase; "
+            "sequences are not simultaneous multi-UAV measurements and reverse at endpoints"
+            if cfg.channel == "trace" else None
+        ),
+        "trusted_root": {
+            "samples_per_class": cfg.root_samples_per_class,
+            "total_samples": int(len(root_idx)),
+            "excluded_from_all_client_partitions": True,
+            "used_by_aggregator": cfg.aggregator in {"ccra", "ccra_noctx", "fltrust"},
+        },
     }
     with open(os.path.join(run_dir, "assumptions.json"), "w") as f:
         json.dump(assumptions, f, indent=2)
@@ -87,12 +125,8 @@ def main(argv=None):
 
     root_client = None
     if cfg.aggregator in {"ccra", "ccra_noctx", "fltrust"}:
-        # Trusted reference set held in the aggregator's TEE: 50 clean images per class.
-        g = torch.Generator().manual_seed(cfg.seed + 99)
-        ref_idx = torch.cat([(train_ds.targets == c).nonzero().flatten()[
-            torch.randperm(int((train_ds.targets == c).sum()), generator=g)[:50]] for c in range(num_classes)])
-        root_client = DroneClient(-1, train_ds, ref_idx.numpy(), cfg, device)
-        print(f"Trusted reference set: {len(ref_idx)} images")
+        root_client = DroneClient(-1, train_ds, root_numpy, cfg, device)
+        print(f"Trusted reference set: {len(root_idx)} images (disjoint from client data)")
 
     # Every drone (and the root set) now holds its own copy of its images, so the
     # full training tensor is no longer needed; freeing it roughly halves RAM use.
@@ -118,6 +152,14 @@ def main(argv=None):
         "total_handovers": sum(h["handovers"] for h in history),
         "mean_honest_rejection_rate": sum(h["honest_rejection_rate"] for h in history) / len(history),
         "mean_attacker_acceptance_rate": sum(h["attacker_acceptance_rate"] for h in history) / len(history),
+        "mean_max_cell_byzantine_fraction": sum(
+            h["max_cell_byzantine_fraction"] for h in history
+        ) / len(history),
+        "total_byzantine_majority_cells": sum(h["byzantine_majority_cells"] for h in history),
+        "total_krum_fallback_cells": sum(h["krum_fallback_cells"] for h in history),
+        "total_robustness_bound_violating_cells": sum(
+            h["robustness_bound_violating_cells"] for h in history
+        ),
         "total_time_min": elapsed / 60,
     }
     with open(os.path.join(run_dir, "summary.json"), "w") as f:

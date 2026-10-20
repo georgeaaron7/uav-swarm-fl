@@ -34,18 +34,21 @@ class SwarmTopology:
         half = cfg.area_m / 2
         self.positions = rng.uniform(-half, half, size=(num_clients, 2))
         self.altitudes = np.full(num_clients, cfg.drone_alt_m, dtype=float)
-        self.base_stations = self._make_bs_layout(self.num_base_stations, cfg.area_m)
+        radius = cfg.bs_radius_m
+        if radius <= 0:
+            # A trace-driven layout is replaced after the trace is loaded.
+            radius = cfg.area_m * 0.30
+        self.base_stations = self._make_bs_layout(self.num_base_stations, radius)
         self.serving = np.full(num_clients, -1, dtype=int)
         self.pending = np.full(num_clients, -1, dtype=int)
         self.pending_rounds = np.zeros(num_clients, dtype=int)
         self.handover_counts = np.zeros(num_clients, dtype=int)
 
     @staticmethod
-    def _make_bs_layout(n: int, area_m: float) -> np.ndarray:
+    def _make_bs_layout(n: int, radius: float) -> np.ndarray:
         # BS 0 is the measured/reference site for trace-driven experiments.
         if n == 1:
             return np.zeros((1, 2), dtype=float)
-        radius = area_m * 0.30
         angles = np.linspace(0, 2 * np.pi, n - 1, endpoint=False)
         ring = np.column_stack((radius * np.cos(angles), radius * np.sin(angles)))
         return np.vstack((np.zeros((1, 2)), ring))
@@ -62,11 +65,17 @@ class SwarmTopology:
         self.positions = np.asarray(xy_m, dtype=float)
         self.altitudes = np.asarray(altitude_m, dtype=float)
 
+    def set_base_station_radius(self, radius_m: float) -> None:
+        if radius_m <= 0:
+            raise ValueError("base-station radius must be positive")
+        self.base_stations = self._make_bs_layout(self.num_base_stations, radius_m)
+
     def distances(self) -> np.ndarray:
         horizontal = np.linalg.norm(
             self.positions[:, None, :] - self.base_stations[None, :, :], axis=2
         )
-        return np.sqrt(horizontal**2 + self.altitudes[:, None] ** 2)
+        vertical = self.altitudes[:, None] - self.cfg.bs_height_m
+        return np.sqrt(horizontal**2 + vertical**2)
 
     def update_associations(self, signal_dbm: np.ndarray) -> list[HandoverEvent]:
         if signal_dbm.shape != (self.num_clients, self.num_base_stations):

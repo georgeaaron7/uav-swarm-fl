@@ -60,12 +60,19 @@ def scenario_matrix(trace_path: str, profile: str) -> dict[str, list[str]]:
         "clean_hfl_lossy": common_hfl + ["--channel", "lossy", "--jammed-ids", JAMMED_IDS],
     }
     for attack in ATTACKS:
+        scenarios[f"{attack}_ideal"] = [
+            "--attack", attack, "--malicious-ids", MALICIOUS_IDS,
+        ]
         scenarios[f"{attack}_hfl_lossy"] = common_hfl + [
             "--channel", "lossy", "--jammed-ids", JAMMED_IDS,
             "--attack", attack, "--malicious-ids", MALICIOUS_IDS,
         ]
     if trace_path:
-        trace_common = common_hfl + ["--channel", "trace", "--channel-trace-path", trace_path]
+        trace_common = common_hfl + [
+            "--channel", "trace", "--channel-trace-path", trace_path,
+            "--trace-stride", "5", "--trace-min-sequence-length", "200",
+            "--trace-snr-reference-db", "10",
+        ]
         scenarios["clean_hfl_trace"] = trace_common
         for attack in ATTACKS:
             scenarios[f"{attack}_hfl_trace"] = trace_common + [

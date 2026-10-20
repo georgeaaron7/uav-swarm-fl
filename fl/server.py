@@ -77,6 +77,12 @@ class FederatedServer:
         self.delivery_sum = np.zeros(len(clients), dtype=float)
         self.delivery_attempts = np.zeros(len(clients), dtype=int)
 
+    def _training_seed(self, rnd: int, client_id: int) -> int:
+        return int(
+            (self.cfg.seed * 1_000_003 + rnd * 1_009 + (client_id + 1) * 9_176)
+            % (2**63 - 1)
+        )
+
     def sample_clients(self) -> list[DroneClient]:
         count = max(1, int(round(self.cfg.client_fraction * len(self.clients))))
         indices = self.rng.choice(len(self.clients), size=count, replace=False)
@@ -97,7 +103,7 @@ class FederatedServer:
             return self.aggregator.aggregate(updates, root=root)
         return self.aggregator.aggregate(updates)
 
-    def _synchronize_global(self) -> dict[int, float]:
+    def _cell_population_weights(self) -> dict[int, float]:
         populations = {
             bs: sum(c.num_samples for c in self.clients if self.topology.serving[c.client_id] == bs)
             for bs in range(self.topology.num_base_stations)
@@ -107,15 +113,25 @@ class FederatedServer:
             return {}
         weights = np.array([populations[bs] for bs in active], dtype=float)
         weights /= weights.sum()
+        return {bs: float(weight) for bs, weight in zip(active, weights)}
+
+    def _synchronize_global(self) -> dict[int, float]:
+        population_weights = self._cell_population_weights()
+        active = list(population_weights)
+        if not active:
+            return {}
         states = [self.edge_models[bs].state_dict() for bs in active]
         vectors = torch.stack([flatten(state) for state in states])
-        global_vector = (torch.tensor(weights, dtype=torch.float32)[:, None] * vectors).sum(0)
+        weights = torch.tensor(
+            [population_weights[bs] for bs in active], dtype=torch.float32
+        )
+        global_vector = (weights[:, None] * vectors).sum(0)
         template = self.model.state_dict()
         self.model.load_state_dict(unflatten(global_vector, template))
         synced_state = copy.deepcopy(self.model.state_dict())
         for edge_model in self.edge_models:
             edge_model.load_state_dict(synced_state)
-        return {bs: float(weight) for bs, weight in zip(active, weights)}
+        return population_weights
 
     def run(self, run_dir: str) -> list[dict]:
         cfg = self.cfg
@@ -124,6 +140,8 @@ class FederatedServer:
             "round", "test_acc", "test_loss", "train_loss", "num_received", "mean_pdr",
             "mean_latency_s", "deadline_drop_rate", "stale_update_rate", "handovers",
             "malicious_weight", "honest_rejection_rate", "attacker_acceptance_rate",
+            "max_cell_byzantine_fraction", "byzantine_majority_cells",
+            "krum_fallback_cells", "robustness_bound_violating_cells",
             "global_sync", "round_time_s",
         ]
         with open(csv_path, "w", newline="") as handle:
@@ -150,14 +168,16 @@ class FederatedServer:
                         "serving_bs", "handover", "handover_count", "distance_m", "altitude_m"
                     )
                 } | {"reliability": self._reliability(cid)}
-                if "speed_mps" in link:
-                    context["speed_mps"] = link["speed_mps"]
+                if "trace_speed_normalized" in link:
+                    context["trace_speed_normalized"] = link["trace_speed_normalized"]
                 if "trace_source_index" in link:
                     context["trace_source_index"] = link["trace_source_index"]
                 client.link_telemetry = dict(link)
                 client.context = dict(context)
                 client.staleness = 0
-                update = client.local_train(self.edge_models[bs])
+                update = client.local_train(
+                    self.edge_models[bs], seed=self._training_seed(rnd, cid)
+                )
                 train_losses.append(update.metrics["train_loss"])
                 base_state = {
                     key: value.detach().cpu().clone()
@@ -214,7 +234,9 @@ class FederatedServer:
                 if getattr(self.aggregator, "needs_root", False):
                     if self.root_client is None:
                         raise RuntimeError(f"{cfg.aggregator} requires a trusted root client")
-                    root = flatten(self.root_client.local_train(edge_model).state_dict) - edge_vector
+                    root = flatten(self.root_client.local_train(
+                        edge_model, seed=self._training_seed(rnd, -1)
+                    ).state_dict) - edge_vector
                 aggregate, info = self._aggregate(updates, root)
                 edge_model.load_state_dict(unflatten(edge_vector + aggregate, edge_state))
                 for cid, weight in info["weights"].items():
@@ -222,10 +244,21 @@ class FederatedServer:
                 if "trust" in info:
                     for cid in drones:
                         drones[cid]["trust"] = info["trust"].get(cid)
+                actual_f = sum(u["id"] in malicious for u in updates)
+                bound_violated = False
+                if cfg.aggregator in {"krum", "multi_krum"}:
+                    bound_violated = actual_f > info.get("effective_f", 0)
+                elif cfg.aggregator == "median":
+                    bound_violated = 2 * actual_f >= len(updates)
+                elif cfg.aggregator == "trimmed_mean":
+                    bound_violated = actual_f > int(len(updates) * cfg.trim_ratio)
                 cell_info[bs] = {
                     "selected": len(pending[bs]),
                     "received": len(updates),
                     "client_ids": [u["id"] for u in updates],
+                    "malicious_received": sum(u["id"] in malicious for u in updates),
+                    "byzantine_fraction": sum(u["id"] in malicious for u in updates) / len(updates),
+                    "robustness_bound_violated": bound_violated,
                     **({"fallback": info["fallback"]} if "fallback" in info else {}),
                     **({"effective_f": info["effective_f"]} if "effective_f" in info else {}),
                 }
@@ -237,12 +270,12 @@ class FederatedServer:
             )
             sync_weights = self._synchronize_global() if should_sync else {}
             received = [update for updates in received_by_bs.values() for update in updates]
-            received_samples = sum(update["n"] for update in received) or 1
+            cell_population_weights = self._cell_population_weights()
             for bs, updates in received_by_bs.items():
-                cell_share = sum(update["n"] for update in updates) / received_samples
                 for update in updates:
                     drones[update["id"]]["effective_weight"] = (
-                        drones[update["id"]]["weight"] * cell_share
+                        drones[update["id"]]["weight"]
+                        * cell_population_weights.get(bs, 0.0)
                     )
             selected_drones = list(drones.values())
             honest_received = [u for u in received if u["id"] not in malicious]
@@ -267,6 +300,22 @@ class FederatedServer:
                 "attacker_acceptance_rate": float(np.mean([
                     drones[u["id"]]["weight"] > 0 for u in malicious_received
                 ])) if malicious_received else 0.0,
+                "max_cell_byzantine_fraction": max(
+                    (info.get("byzantine_fraction", 0.0) for info in cell_info.values()),
+                    default=0.0,
+                ),
+                "byzantine_majority_cells": sum(
+                    info.get("byzantine_fraction", 0.0) >= 0.5
+                    for info in cell_info.values() if info.get("received", 0) > 0
+                ),
+                "krum_fallback_cells": sum(
+                    info.get("fallback") == "fedavg_insufficient_krum_clients"
+                    for info in cell_info.values()
+                ),
+                "robustness_bound_violating_cells": sum(
+                    info.get("robustness_bound_violated", False)
+                    for info in cell_info.values()
+                ),
                 "global_sync": should_sync,
                 "sync_weights": sync_weights,
                 "cells": cell_info,
