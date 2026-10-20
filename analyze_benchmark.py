@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import statistics
 from collections import defaultdict
 from pathlib import Path
@@ -47,9 +48,24 @@ def main():
 
     rows = []
     for (scenario, aggregator), summaries in sorted(groups.items()):
-        row = {"scenario": scenario, "aggregator": aggregator, "seeds": len(summaries)}
+        diverged = sum(bool(summary.get("diverged", False)) for summary in summaries)
+        row = {
+            "scenario": scenario,
+            "aggregator": aggregator,
+            "seeds": len(summaries),
+            "successful_seeds": len(summaries) - diverged,
+            "diverged_seeds": diverged,
+            "divergence_rate": diverged / len(summaries),
+        }
         for metric in METRICS:
-            values = [float(summary[metric]) for summary in summaries if metric in summary]
+            values = []
+            for summary in summaries:
+                value = summary.get(metric)
+                if value is None:
+                    continue
+                value = float(value)
+                if math.isfinite(value):
+                    values.append(value)
             row[f"{metric}_mean"] = statistics.fmean(values) if values else float("nan")
             row[f"{metric}_std"] = statistics.stdev(values) if len(values) > 1 else 0.0
         rows.append(row)
@@ -63,13 +79,22 @@ def main():
     md_path = args.root / "BENCHMARK_SUMMARY.md"
     with md_path.open("w") as handle:
         handle.write("# Multi-seed benchmark summary\n\n")
-        handle.write("Accuracy is reported as mean ± sample standard deviation across completed seeds.\n\n")
-        handle.write("| Scenario | Aggregator | Seeds | Final accuracy | PDR | Latency (s) | Handovers |\n")
-        handle.write("|---|---|---:|---:|---:|---:|---:|\n")
+        handle.write(
+            "Accuracy is reported as mean ± sample standard deviation across non-diverged seeds; "
+            "divergence is reported separately and is never silently imputed.\n\n"
+        )
+        handle.write("| Scenario | Aggregator | Successful/total | Diverged | Final accuracy | PDR | Latency (s) | Handovers |\n")
+        handle.write("|---|---|---:|---:|---:|---:|---:|---:|\n")
         for row in rows:
+            accuracy = (
+                f"{100 * row['final_test_acc_mean']:.2f} ± "
+                f"{100 * row['final_test_acc_std']:.2f}"
+                if math.isfinite(row["final_test_acc_mean"]) else "—"
+            )
             handle.write(
-                f"| {row['scenario']} | {row['aggregator']} | {row['seeds']} | "
-                f"{100 * row['final_test_acc_mean']:.2f} ± {100 * row['final_test_acc_std']:.2f} | "
+                f"| {row['scenario']} | {row['aggregator']} | "
+                f"{row['successful_seeds']}/{row['seeds']} | {row['diverged_seeds']} | "
+                f"{accuracy} | "
                 f"{row['mean_pdr_mean']:.3f} | {row['mean_latency_s_mean']:.3f} | "
                 f"{row['total_handovers_mean']:.1f} |\n"
             )

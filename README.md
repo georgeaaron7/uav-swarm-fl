@@ -320,9 +320,12 @@ python analyze_channel_trace.py data/channel_traces/deepsense23.npz
 ```
 
 The analyzer produces `benchmark_summary.csv` and `BENCHMARK_SUMMARY.md` with
-mean and sample standard deviation across completed seeds. Full benchmark output
-is ignored by Git until results have been reviewed and deliberately selected for
-publication.
+mean and sample standard deviation across non-diverged seeds. Numerical
+divergence is a terminal experimental outcome: the run preserves its last
+known-good model, records the divergence round and stage, and reports a separate
+divergence rate rather than averaging an invalid accuracy or silently replacing
+it with chance performance. Full benchmark output is ignored by Git until
+results have been reviewed and deliberately selected for publication.
 
 The matrix includes centralized ideal-channel attacks as a controlled setting
 where 3 Byzantine clients out of 10 satisfy the usual Krum/median population

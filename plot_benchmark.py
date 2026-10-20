@@ -46,6 +46,8 @@ def defense_tradeoff(rows: list[dict], out: Path) -> None:
     attacked = [row for row in rows if not row["scenario"].startswith("clean")]
     fig, ax = plt.subplots(figsize=(8, 6))
     for row in attacked:
+        if int(row.get("successful_seeds", row["seeds"])) == 0:
+            continue
         honest_rejection = 100 * float(row["mean_honest_rejection_rate_mean"])
         attacker_acceptance = 100 * float(row["mean_attacker_acceptance_rate_mean"])
         ax.scatter(honest_rejection, attacker_acceptance, s=35)

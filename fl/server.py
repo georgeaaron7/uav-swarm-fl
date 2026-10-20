@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy
 import csv
 import json
+import math
 import os
 import time
 
@@ -17,6 +18,15 @@ from .attacks import craft_model_updates
 from .channel import WirelessChannel
 from .client import DroneClient
 from .topology import SwarmTopology
+
+
+class NumericalDivergenceError(RuntimeError):
+    """Terminal, explicitly reportable numerical failure of an FL run."""
+
+    def __init__(self, round_number: int, stage: str):
+        self.round_number = round_number
+        self.stage = stage
+        super().__init__(f"numerical divergence at round {round_number} during {stage}")
 
 
 def flatten(state: dict) -> torch.Tensor:
@@ -115,7 +125,7 @@ class FederatedServer:
         weights /= weights.sum()
         return {bs: float(weight) for bs, weight in zip(active, weights)}
 
-    def _synchronize_global(self) -> dict[int, float]:
+    def _synchronize_global(self, rnd: int) -> dict[int, float]:
         population_weights = self._cell_population_weights()
         active = list(population_weights)
         if not active:
@@ -126,6 +136,8 @@ class FederatedServer:
             [population_weights[bs] for bs in active], dtype=torch.float32
         )
         global_vector = (weights[:, None] * vectors).sum(0)
+        if not torch.isfinite(global_vector).all():
+            raise NumericalDivergenceError(rnd, "global synchronization")
         template = self.model.state_dict()
         self.model.load_state_dict(unflatten(global_vector, template))
         synced_state = copy.deepcopy(self.model.state_dict())
@@ -150,6 +162,10 @@ class FederatedServer:
         best_accuracy = 0.0
         malicious = {c.client_id for c in self.clients if c.is_malicious}
         for rnd in range(1, cfg.rounds + 1):
+            # Keep a known-good globally synchronized state. If an attack makes
+            # a run diverge, the caller can save this state without persisting
+            # NaN/Inf parameters as if they were a trained model.
+            self.last_valid_global_state = copy.deepcopy(self.model.state_dict())
             start_time = time.time()
             links = self.channel.link_state(rnd)
             selected = self.sample_clients()
@@ -178,6 +194,8 @@ class FederatedServer:
                 update = client.local_train(
                     self.edge_models[bs], seed=self._training_seed(rnd, cid)
                 )
+                if not math.isfinite(update.metrics["train_loss"]):
+                    raise NumericalDivergenceError(rnd, f"client {cid} local training")
                 train_losses.append(update.metrics["train_loss"])
                 base_state = {
                     key: value.detach().cpu().clone()
@@ -211,7 +229,20 @@ class FederatedServer:
                         "tel": telemetry,
                         "staleness": telemetry["staleness"],
                     })
-                    drones[cid] = dict(telemetry) | {
+                    if not torch.isfinite(record["delta"]).all():
+                        raise NumericalDivergenceError(rnd, f"client {cid} transmitted update")
+                    # Ideal links use +Inf internally for unbounded SNR/rate.
+                    # JSON diagnostics use null for those not-applicable limits
+                    # so every artifact remains standards-compliant JSON.
+                    serializable_telemetry = {
+                        key: (
+                            None
+                            if isinstance(value, float) and not math.isfinite(value)
+                            else value
+                        )
+                        for key, value in telemetry.items()
+                    }
+                    drones[cid] = serializable_telemetry | {
                         "oracle_is_malicious": cid in malicious,
                         "weight": 0.0,
                         "reliability": record["ctx"]["reliability"],
@@ -238,7 +269,12 @@ class FederatedServer:
                         edge_model, seed=self._training_seed(rnd, -1)
                     ).state_dict) - edge_vector
                 aggregate, info = self._aggregate(updates, root)
-                edge_model.load_state_dict(unflatten(edge_vector + aggregate, edge_state))
+                if not torch.isfinite(aggregate).all():
+                    raise NumericalDivergenceError(rnd, f"base station {bs} aggregation")
+                candidate = edge_vector + aggregate
+                if not torch.isfinite(candidate).all():
+                    raise NumericalDivergenceError(rnd, f"base station {bs} model update")
+                edge_model.load_state_dict(unflatten(candidate, edge_state))
                 for cid, weight in info["weights"].items():
                     drones[cid]["weight"] = weight
                 if "trust" in info:
@@ -268,7 +304,7 @@ class FederatedServer:
                 or rnd % cfg.global_sync_every == 0
                 or rnd == cfg.rounds
             )
-            sync_weights = self._synchronize_global() if should_sync else {}
+            sync_weights = self._synchronize_global(rnd) if should_sync else {}
             received = [update for updates in received_by_bs.values() for update in updates]
             cell_population_weights = self._cell_population_weights()
             for bs, updates in received_by_bs.items():
@@ -323,7 +359,12 @@ class FederatedServer:
                 "drones": drones,
             }
             if rnd % cfg.eval_every == 0 or rnd == cfg.rounds:
-                record.update(evaluate(self.model, self.test_ds, self.device, cfg.eval_batch_size))
+                evaluation = evaluate(self.model, self.test_ds, self.device, cfg.eval_batch_size)
+                numeric_values = [evaluation["test_loss"], evaluation["test_acc"]]
+                numeric_values.extend(evaluation["per_class_acc"])
+                if not all(math.isfinite(value) for value in numeric_values):
+                    raise NumericalDivergenceError(rnd, "model evaluation")
+                record.update(evaluation)
             record["round_time_s"] = time.time() - start_time
             self.history.append(record)
 
@@ -344,5 +385,5 @@ class FederatedServer:
 
         torch.save(self.model.state_dict(), os.path.join(run_dir, "final_model.pt"))
         with open(os.path.join(run_dir, "history.json"), "w") as handle:
-            json.dump(self.history, handle, indent=2)
+            json.dump(self.history, handle, indent=2, allow_nan=False)
         return self.history
