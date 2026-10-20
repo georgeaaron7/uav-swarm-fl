@@ -2,9 +2,10 @@
 
 > **Result provenance:** the Month 1 and Months 2–3 numbers below are preserved
 > historical results from the earlier centralized simulator. The hierarchical,
-> trace-driven, multi-attack extension is implemented later in this document;
-> its results must be generated with `run_experiments.py` and are not silently
-> substituted into the earlier tables.
+> trace-driven, multi-attack extension is implemented and evaluated later in
+> this document. Its 432-run A100 benchmark is published under
+> [`results/benchmark_gpu`](results/benchmark_gpu/README.md); those results are
+> kept separate rather than silently substituted into the historical tables.
 
 ## Month 1: Foundation & Baseline (weeks 1–4)
 
@@ -145,7 +146,7 @@ The attackers are drones 0, 3 and 6, which flip their labels. The jammer targets
 3. CCRA stays at about 43–44% in every scenario. That is **+6.7 over CosAvg under attack** and **+3.3 under attack plus jamming**.
 4. CCRA costs about 2.5 points when there is no attack, because it sometimes down-weights honest drones whose data is very skewed.
 
-**Limitations (work in progress)**
+**Limitations of this historical experiment**
 - Results are from a single seed and 30 rounds. Multi-seed runs are next.
 - The channel-context part of CCRA adds only +0.8 points over the no-context ablation (42.2 → 43.0), which is within noise.
 - CCRA uses a 500-image trusted reference set in the TEE and CosAvg does not. Running CosAvg with the same reference is planned.
@@ -305,12 +306,9 @@ python run_experiments.py --profile smoke --parallel 2
 
 # Multi-seed benchmark
 python run_experiments.py \
-  --profile core --seeds 41 42 43 --rounds 30 --parallel 2
-
-# Include measurement-driven channel scenarios
-python run_experiments.py \
-  --profile core --seeds 41 42 43 \
-  --trace-path data/channel_traces/deepsense23.npz
+  --profile core --seeds 41 42 43 --rounds 30 --parallel 8 \
+  --trace-path data/channel_traces/deepsense23.npz \
+  --out-dir results/benchmark
 
 python analyze_benchmark.py results/benchmark
 python plot_benchmark.py results/benchmark
@@ -319,13 +317,73 @@ python plot_benchmark.py results/benchmark
 python analyze_channel_trace.py data/channel_traces/deepsense23.npz
 ```
 
+### Latest A100 benchmark results
+
+The reviewed benchmark completed all **432 terminal runs**: 18 scenarios × 8
+aggregators × 3 deterministic seeds (41, 42, and 43), with 30 requested rounds
+per run. Training used an NVIDIA A100-SXM4-40GB, PyTorch 2.11.0, CUDA 12.8,
+and source commit `4a2e772`. The matrix covers clean training and five attacks
+(label flip, sign flip, Gaussian, ALIE, and IPM) under centralized ideal,
+synthetic HFL lossy, and DeepSense-driven HFL trace channels.
+
+The following is a descriptive aggregate across attacked runs. Accuracy is
+averaged only across non-diverged runs; divergence is reported separately.
+Methods with many divergences therefore must not be ranked from accuracy alone.
+
+| Aggregator | Mean attacked accuracy | Diverged attacked runs |
+|---|---:|---:|
+| **CCRA** | **41.8%** | 1/45 |
+| CCRA without context | 40.9% | **0/45** |
+| FedAvg | 37.5% | 9/45 |
+| CosAvg | 35.6% | 11/45 |
+| Trimmed Mean | 33.5% | 9/45 |
+| Multi-Krum | 30.8% | 10/45 |
+| Coordinate Median | 26.5% | 7/45 |
+| FLTrust | 16.8% | **0/45** |
+
+Across scenario-level means, CCRA ranked first in 11 of 18 scenarios. In the 44
+attacked seed/scenario pairs where both CCRA variants completed, channel context
+added a descriptive **+0.92 percentage points** on average and CCRA won 34/44
+pairs. This is an effect estimate, not a significance claim. The no-context
+ablation was more numerically stable: CCRA diverged for seed 43 in the
+sign-flip HFL-trace scenario, while the ablation completed every run.
+
+Clean runs show the expected robustness cost. FedAvg reached 46.1 ± 0.5% on the
+ideal channel and 45.3 ± 0.6% on the trace channel, compared with 45.1 ± 0.9%
+and 45.0 ± 1.1% for CCRA. The trace configuration was also milder than the
+synthetic lossy stress test: mean PDR was 0.939 versus 0.834, mean upload
+latency was 0.071 s versus 0.205 s, and runs recorded 1 versus 14 handovers.
+
+![A100 benchmark accuracy heatmap](results/benchmark_gpu/accuracy_heatmap.png)
+
+![A100 benchmark defense trade-off](results/benchmark_gpu/defense_tradeoff.png)
+
+The HFL results must be interpreted with cell-level population bounds. Among 30
+attacked HFL runs per method, robustness conditions were violated in 25 Median,
+30 Trimmed Mean, and 30 Multi-Krum runs; Multi-Krum also used an average of 18.9
+recorded FedAvg fallbacks per run. These are properties of the evaluated mobile
+cell composition, not implementation failures.
+
+Only three seeds were run, so the report uses mean ± sample standard deviation
+and makes no statistical-significance claim. Scenario 23 supplies a single-BS
+trace with relative, uncalibrated beam power; the 10 dB SNR anchor, additional
+virtual BSs, packet model, and multi-cell handovers remain explicit simulation
+assumptions. Results are also specific to aerial CIFAR-10, TacticalEdgeCNN, ten
+clients, the selected attacker placement, and 30 rounds.
+
+The complete review package contains a 432-row run table, 144-row aggregate
+table, plots, provenance markers, checkpoint hashes, and a compressed archive
+of every non-checkpoint run artifact. See
+[`results/benchmark_gpu/README.md`](results/benchmark_gpu/README.md) for the
+inventory and verification details.
+
 The analyzer produces `benchmark_summary.csv` and `BENCHMARK_SUMMARY.md` with
 mean and sample standard deviation across non-diverged seeds. Numerical
 divergence is a terminal experimental outcome: the run preserves its last
 known-good model, records the divergence round and stage, and reports a separate
 divergence rate rather than averaging an invalid accuracy or silently replacing
-it with chance performance. Full benchmark output is ignored by Git until
-results have been reviewed and deliberately selected for publication.
+it with chance performance. `benchmark_runs.csv` preserves one row per run so
+the aggregate report remains independently auditable.
 
 The matrix includes centralized ideal-channel attacks as a controlled setting
 where 3 Byzantine clients out of 10 satisfy the usual Krum/median population

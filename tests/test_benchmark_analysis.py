@@ -36,8 +36,13 @@ def test_analysis_separates_divergence_from_accuracy(tmp_path):
     subprocess.run([sys.executable, str(script), str(tmp_path)], check=True)
     with (tmp_path / "benchmark_summary.csv").open(newline="") as handle:
         row = next(csv.DictReader(handle))
+    with (tmp_path / "benchmark_runs.csv").open(newline="") as handle:
+        run_rows = list(csv.DictReader(handle))
     assert row["successful_seeds"] == "1"
     assert row["diverged_seeds"] == "1"
     assert float(row["divergence_rate"]) == 0.5
     assert float(row["final_test_acc_mean"]) == 0.5
     assert float(row["mean_pdr_mean"]) == 1.0
+    assert len(run_rows) == 2
+    assert [row["seed"] for row in run_rows] == ["41", "42"]
+    assert [row["diverged"] for row in run_rows] == ["False", "True"]

@@ -25,6 +25,18 @@ METRICS = (
     "total_time_min",
 )
 
+RUN_FIELDS = (
+    "diverged",
+    "divergence_round",
+    "divergence_stage",
+    "completed_rounds",
+    "final_test_acc",
+    "last_finite_test_acc",
+    "best_test_acc",
+    "best_round",
+    "mean_last5_test_acc",
+) + METRICS
+
 
 def find_summaries(root: Path):
     for path in root.rglob("summary.json"):
@@ -32,8 +44,10 @@ def find_summaries(root: Path):
         if "__" not in run_name:
             continue
         scenario, aggregator = run_name.rsplit("__", 1)
+        seed_dir = path.parent.parent.name
+        seed = seed_dir.removeprefix("seed") if seed_dir.startswith("seed") else ""
         with path.open() as handle:
-            yield scenario, aggregator, json.load(handle)
+            yield scenario, aggregator, seed, json.load(handle)
 
 
 def main():
@@ -41,10 +55,29 @@ def main():
     parser.add_argument("root", type=Path, nargs="?", default=Path("results/benchmark"))
     args = parser.parse_args()
     groups = defaultdict(list)
-    for scenario, aggregator, summary in find_summaries(args.root):
+    run_rows = []
+    for scenario, aggregator, seed, summary in find_summaries(args.root):
         groups[(scenario, aggregator)].append(summary)
+        run_rows.append({
+            "seed": seed,
+            "scenario": scenario,
+            "aggregator": aggregator,
+            **{field: summary.get(field) for field in RUN_FIELDS},
+        })
     if not groups:
         raise SystemExit(f"no benchmark summary.json files found under {args.root}")
+
+    runs_csv_path = args.root / "benchmark_runs.csv"
+    with runs_csv_path.open("w", newline="") as handle:
+        writer = csv.DictWriter(
+            handle, fieldnames=list(run_rows[0]), lineterminator="\n"
+        )
+        writer.writeheader()
+        writer.writerows(sorted(
+            run_rows,
+            key=lambda row: (int(row["seed"]) if row["seed"] else -1,
+                             row["scenario"], row["aggregator"]),
+        ))
 
     rows = []
     for (scenario, aggregator), summaries in sorted(groups.items()):
@@ -75,7 +108,7 @@ def main():
 
     csv_path = args.root / "benchmark_summary.csv"
     with csv_path.open("w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0]), lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 
@@ -101,7 +134,7 @@ def main():
                 f"{row['mean_pdr_mean']:.3f} | {row['mean_latency_s_mean']:.3f} | "
                 f"{row['total_handovers_mean']:.1f} |\n"
             )
-    print(f"wrote {csv_path} and {md_path}")
+    print(f"wrote {runs_csv_path}, {csv_path}, and {md_path}")
 
 
 if __name__ == "__main__":

@@ -14,3 +14,8 @@ results/smoke_test/
 results/*smoke*/
 results/benchmark/
 results/trace_validation/
+
+# Full GPU benchmark run trees are packaged into a reviewable archive. Keep the
+# local extracted copy (including checkpoints) without adding thousands of
+# generated files to Git.
+results/benchmark_gpu/seed*/
