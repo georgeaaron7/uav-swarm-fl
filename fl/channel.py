@@ -1,33 +1,12 @@
-"""Lossy wireless channel between drones and the aggregator (Python stand-in for NS-3).
-
-Model (per round, per drone k)
-------------------------------
-* Geometry: drones fly at `drone_alt` m over a square area, doing a bounded
-  random walk each round. The aggregator (swarm leader / ground node) is at the centre.
-* Path loss (log-distance, air-to-ground LoS-ish):
-      PL(d) = PL0 + 10 * n * log10(d)        [dB], PL0 = 40 dB @ 1 m (2.4 GHz)
-* Small-scale fading: Rayleigh block fading, |h|^2 ~ Exp(1), new each round.
-* EW jamming: a ground jammer of power P_J placed over the targeted sector.
-  The interference it puts on drone k's link is P_J - PL(dist(jammer, drone k)).
-  (A link with ARQ/ACKs breaks if either endpoint is jammed.)
-* SINR_k = S_k / (N0 + J_k)
-* Packet error rate: logistic PER(SINR) curve (the shape of NS-3's
-  table-based error models): PER = 1 / (1 + exp(slope * (SINR_dB - thr_dB)))
-* The model update is split into packets of `packet_size` parameters. Each packet
-  is lost independently with probability PER (CRC detects the loss).
-* Received packets carry residual noise (soft errors that pass CRC / analog
-  over-the-air aggregation):
-      sigma_k = noise_scale * std(update_k) * 10^(-SINR_dB / 20)
-  so a drone in a bad channel delivers a *noisy but honest* update.
-  This is the "legitimate noise" that a robust aggregator must not reject.
-
-transmit() returns the update as received at the aggregator (lost entries = 0),
-a boolean mask of delivered parameters, and the telemetry (SINR, PER, PDR).
-"""
+"""Wireless uplink models for ideal, synthetic-lossy, and measured-trace runs."""
 from __future__ import annotations
+
+import math
 
 import numpy as np
 import torch
+
+from .channel_traces import ChannelTrace
 
 
 def parse_ids(s: str) -> list[int]:
@@ -35,69 +14,159 @@ def parse_ids(s: str) -> list[int]:
 
 
 class WirelessChannel:
-    def __init__(self, cfg, num_clients: int):
+    """Produce BS-side link observations and transmit flattened model updates.
+
+    ``lossy`` uses log-distance path loss, Rayleigh fading, jamming, and a
+    logistic packet-error curve. ``trace`` anchors received power to recorded
+    DeepSense samples, then adjusts it for each simulated BS by relative 3-D
+    distance. The trace source index is retained in every telemetry record.
+    """
+
+    def __init__(self, cfg, num_clients: int, topology=None):
         self.cfg = cfg
         self.mode = cfg.channel
         self.n = num_clients
-        rng = np.random.default_rng(cfg.seed + 1234)
-        half = cfg.area_m / 2
-        self.pos = rng.uniform(-half, half, size=(num_clients, 2))
-        self.rx = np.zeros(2)
-        jammed = parse_ids(cfg.jammed_ids)
-        if jammed:
-            # jammer sits over the sector the targeted drones are patrolling
-            self.jammer = self.pos[jammed].mean(axis=0) + rng.normal(0, 20, size=2)
-        else:
-            self.jammer = None
+        self.topology = topology
+        self.trace = ChannelTrace(cfg.channel_trace_path) if self.mode == "trace" else None
+        self.jammed = set(parse_ids(cfg.jammed_ids))
+        rng = np.random.default_rng(cfg.seed + 4321)
+        self.jammer = None
+        if self.jammed and topology is not None:
+            ids = [cid for cid in self.jammed if 0 <= cid < num_clients]
+            if ids:
+                self.jammer = topology.positions[ids].mean(axis=0) + rng.normal(0, 20, size=2)
 
-    # ------------------------------------------------------------------
-    def _path_loss_db(self, d2d: np.ndarray, dz: float) -> np.ndarray:
-        d = np.sqrt(d2d ** 2 + dz ** 2)
-        return 40.0 + 10.0 * self.cfg.pathloss_exp * np.log10(np.maximum(d, 1.0))
+    def _path_loss_db(self, distance_m: np.ndarray) -> np.ndarray:
+        return 40.0 + 10.0 * self.cfg.pathloss_exp * np.log10(np.maximum(distance_m, 1.0))
+
+    def _synthetic_signal(self, rnd: int) -> np.ndarray:
+        topology = self.topology
+        topology.move(rnd)
+        distances = topology.distances()
+        rng = np.random.default_rng(self.cfg.seed * 100_003 + rnd)
+        fading_db = 10 * np.log10(rng.exponential(1.0, size=distances.shape) + 1e-12)
+        return self.cfg.tx_power_dbm - self._path_loss_db(distances) + fading_db
+
+    def _trace_signal(self, rnd: int) -> tuple[np.ndarray, list[dict]]:
+        rows = self.trace.rows(self.n, rnd, self.cfg.seed)
+        xy = np.array([[r["x_m"], r["y_m"]] for r in rows], dtype=float)
+        altitude = np.array([max(0.0, float(r["height_m"])) for r in rows])
+        self.topology.set_trace_positions(xy, altitude)
+        distances = self.topology.distances()
+        reference_distance = np.array(
+            [max(1.0, float(r["distance_m"])) for r in rows], dtype=float
+        )[:, None]
+        measured_dbm = np.array(
+            [float(r["rx_power_db"]) + self.cfg.trace_rx_power_offset_db for r in rows]
+        )[:, None]
+        relative_loss = 10.0 * self.cfg.pathloss_exp * np.log10(
+            np.maximum(distances, 1.0) / reference_distance
+        )
+        return measured_dbm - relative_loss, rows
 
     def link_state(self, rnd: int) -> list[dict]:
-        """Per-drone link telemetry for this round (deterministic in seed + round)."""
-        cfg = self.cfg
-        rng = np.random.default_rng(cfg.seed * 100_003 + rnd)
-        half = cfg.area_m / 2
-        # bounded random-walk mobility
-        self.pos = np.clip(self.pos + rng.normal(0, cfg.mobility_m, size=self.pos.shape), -half, half)
+        topology = self.topology
+        if topology is None:
+            raise RuntimeError("WirelessChannel requires a SwarmTopology")
 
-        d_rx = np.linalg.norm(self.pos - self.rx, axis=1)
-        fading_db = 10 * np.log10(rng.exponential(1.0, size=self.n) + 1e-12)
-        sig_dbm = cfg.tx_power_dbm - self._path_loss_db(d_rx, cfg.drone_alt_m) + fading_db
-
-        noise_mw = 10 ** (cfg.noise_dbm / 10)
-        if self.jammer is not None:
-            d_j = np.linalg.norm(self.pos - self.jammer, axis=1)
-            jam_mw = 10 ** ((cfg.jammer_power_dbm - self._path_loss_db(d_j, cfg.drone_alt_m)) / 10)
+        trace_rows = None
+        if self.mode == "trace":
+            signal_dbm, trace_rows = self._trace_signal(rnd)
         else:
-            jam_mw = np.zeros(self.n)
-        sinr_db = sig_dbm - 10 * np.log10(noise_mw + jam_mw)
-        per = 1.0 / (1.0 + np.exp(cfg.per_slope * (sinr_db - cfg.per_threshold_db)))
-        return [{"sinr_db": float(sinr_db[k]), "per": float(per[k]),
-                 "dist_m": float(d_rx[k]), "jam_dbm": float(10 * np.log10(jam_mw[k] + 1e-30))}
-                for k in range(self.n)]
+            signal_dbm = self._synthetic_signal(rnd)
 
-    # ------------------------------------------------------------------
+        handovers = topology.update_associations(signal_dbm)
+        serving = topology.serving
+        chosen_signal = signal_dbm[np.arange(self.n), serving]
+
+        noise_mw = 10 ** (self.cfg.noise_dbm / 10)
+        jam_mw = np.zeros(self.n)
+        if self.jammer is not None:
+            horizontal = np.linalg.norm(topology.positions - self.jammer, axis=1)
+            distance = np.sqrt(horizontal**2 + topology.altitudes**2)
+            interference = 10 ** ((self.cfg.jammer_power_dbm - self._path_loss_db(distance)) / 10)
+            affected = [cid for cid in self.jammed if 0 <= cid < self.n]
+            jam_mw[affected] = interference[affected]
+
+        if self.mode == "ideal":
+            sinr_db = np.full(self.n, np.inf)
+            per = np.zeros(self.n)
+            rate_bps = np.full(self.n, np.inf)
+        else:
+            sinr_db = chosen_signal - 10 * np.log10(noise_mw + jam_mw)
+            exponent = np.clip(self.cfg.per_slope * (sinr_db - self.cfg.per_threshold_db), -60, 60)
+            per = 1.0 / (1.0 + np.exp(exponent))
+            snr_linear = np.power(10.0, np.clip(sinr_db, -100, 100) / 10.0)
+            rate_bps = self.cfg.bandwidth_hz * np.log2(1.0 + snr_linear)
+
+        states = []
+        for cid in range(self.n):
+            ctx = topology.client_context(cid, handovers)
+            state = {
+                "sinr_db": float(sinr_db[cid]),
+                "per": float(per[cid]),
+                "rate_bps": float(rate_bps[cid]),
+                "rx_power_dbm": float(chosen_signal[cid]),
+                "jam_dbm": float(10 * np.log10(jam_mw[cid] + 1e-30)),
+                **ctx,
+            }
+            if trace_rows is not None:
+                row = trace_rows[cid]
+                state.update({
+                    "trace_source_index": row["source_index"],
+                    "trace_sequence_id": int(row["sequence_id"]),
+                    "trace_timestamp_ms": float(row["timestamp_ms"]),
+                    "speed_mps": float(row["speed_mps"]),
+                    "pitch_deg": float(row["pitch_deg"]),
+                    "roll_deg": float(row["roll_deg"]),
+                })
+            states.append(state)
+        return states
+
     def transmit(self, delta: torch.Tensor, link: dict, rnd: int, client_id: int):
-        """Send a flat update vector over the link. Returns (received, mask, telemetry)."""
+        cfg = self.cfg
+        model_bits = delta.numel() * cfg.bits_per_parameter
+        rate_bps = link["rate_bps"]
+        latency_s = 0.0 if math.isinf(rate_bps) else model_bits / max(rate_bps, 1e-12)
+        staleness = (
+            0 if cfg.round_deadline_s <= 0
+            else max(0, math.ceil(latency_s / cfg.round_deadline_s) - 1)
+        )
+        deadline_missed = cfg.round_deadline_s > 0 and latency_s > cfg.round_deadline_s
+
         if self.mode == "ideal":
             mask = torch.ones_like(delta, dtype=torch.bool)
-            return delta.clone(), mask, {"sinr_db": float("inf"), "per": 0.0, "pdr": 1.0}
+            tel = dict(link) | {
+                "pdr": 1.0,
+                "model_bits": int(model_bits),
+                "latency_s": latency_s,
+                "staleness": staleness,
+                "deadline_missed": deadline_missed,
+                "drop_reason": None,
+            }
+            return delta.clone(), mask, tel
 
-        cfg = self.cfg
-        g = torch.Generator().manual_seed(cfg.seed * 7_919 + rnd * 1_009 + client_id)
+        generator = torch.Generator().manual_seed(cfg.seed * 7_919 + rnd * 1_009 + client_id)
         n_params = delta.numel()
-        n_pkts = (n_params + cfg.packet_size - 1) // cfg.packet_size
-        pkt_ok = torch.rand(n_pkts, generator=g) >= link["per"]
-        mask = pkt_ok.repeat_interleave(cfg.packet_size)[:n_params]
+        n_packets = (n_params + cfg.packet_size - 1) // cfg.packet_size
+        packet_ok = torch.rand(n_packets, generator=generator) >= link["per"]
+        drop_reason = None
+        if deadline_missed and cfg.stale_policy == "drop":
+            packet_ok[:] = False
+            drop_reason = "deadline"
+        mask = packet_ok.repeat_interleave(cfg.packet_size)[:n_params]
 
         received = delta.clone()
-        if cfg.noise_scale > 0:
+        if cfg.noise_scale > 0 and math.isfinite(link["sinr_db"]):
             sigma = cfg.noise_scale * delta.std() * 10 ** (-link["sinr_db"] / 20)
-            received += sigma * torch.randn(n_params, generator=g)
+            received += sigma * torch.randn(n_params, generator=generator)
         received[~mask] = 0.0
-        tel = dict(link)
-        tel["pdr"] = float(pkt_ok.float().mean())
+        tel = dict(link) | {
+            "pdr": float(packet_ok.float().mean()),
+            "model_bits": int(model_bits),
+            "latency_s": float(latency_s),
+            "staleness": int(staleness),
+            "deadline_missed": bool(deadline_missed),
+            "drop_reason": drop_reason,
+        }
         return received, mask, tel

@@ -26,6 +26,11 @@ class FLConfig:
     num_clients: int = 10  # number of drones (worker nodes)
     client_fraction: float = 1.0  # fraction of drones participating each round
     rounds: int = 50
+    topology: str = "centralized"  # centralized | hierarchical
+    num_base_stations: int = 3  # used by hierarchical topology
+    global_sync_every: int = 5  # edge rounds between inter-BS synchronisations
+    handover_hysteresis_db: float = 3.0
+    handover_ttt: int = 2  # consecutive rounds before a handover is committed
 
     # --- local training (on each drone) ---
     local_epochs: int = 2
@@ -34,17 +39,28 @@ class FLConfig:
     momentum: float = 0.9
     weight_decay: float = 5e-4
 
-    # --- aggregation: fedavg | cosavg (base paper) | ccra (ours) | ccra_noctx (ablation) ---
+    # --- aggregation ---
+    # fedavg | cosavg | median | trimmed_mean | krum | multi_krum | fltrust
+    # | ccra (ours) | ccra_noctx (ablation)
     aggregator: str = "fedavg"
     ccra_beta: float = 0.5  # reputation memory
     ccra_gate: float = 0.3  # drones below this trust are excluded
+    trim_ratio: float = 0.2
+    krum_byzantine: int = 3
+    multi_krum_m: int = 0  # 0 selects the standard n-f-2 candidates
+    staleness_decay: float = 0.5
 
     # --- Byzantine attack ---
-    attack: str = "none"  # none | label_flip
+    attack: str = "none"  # none | label_flip | sign_flip | gaussian | alie | ipm
     malicious_ids: str = ""  # e.g. "0,3,6"
+    attack_scale: float = 5.0  # sign-flip multiplier / Gaussian RMS multiplier
+    alie_z: float = 1.5
+    ipm_epsilon: float = 0.5
 
     # --- wireless channel ---
-    channel: str = "ideal"  # ideal | lossy
+    channel: str = "ideal"  # ideal | lossy | trace
+    channel_trace_path: str = ""  # prepared .npz from scripts/prepare_deepsense23.py
+    trace_rx_power_offset_db: float = 0.0  # explicit calibration to dBm
     jammed_ids: str = ""  # drones whose sector the EW jammer targets, e.g. "2,5,9"
     area_m: float = 800.0
     drone_alt_m: float = 100.0
@@ -57,6 +73,10 @@ class FLConfig:
     per_slope: float = 1.0
     packet_size: int = 1024  # parameters per packet
     noise_scale: float = 1.0  # residual channel noise on delivered packets
+    bandwidth_hz: float = 20e6
+    bits_per_parameter: int = 32
+    round_deadline_s: float = 2.0
+    stale_policy: str = "drop"  # drop | accept
 
     # --- evaluation ---
     eval_every: int = 1

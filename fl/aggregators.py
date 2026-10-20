@@ -26,6 +26,16 @@ def _cos(a: torch.Tensor, b: torch.Tensor) -> float:
     return float(torch.dot(a, b) / (a.norm() * b.norm() + 1e-12))
 
 
+def _stale_factor(update, cfg) -> float:
+    return math.exp(-getattr(cfg, "staleness_decay", 0.0) * update.get("staleness", 0))
+
+
+def _masked_weighted_average(D: torch.Tensor, M: torch.Tensor, weights: torch.Tensor) -> torch.Tensor:
+    num = (weights[:, None] * D * M).sum(0)
+    den = (weights[:, None] * M).sum(0)
+    return torch.where(den > 0, num / den.clamp(min=1e-12), torch.zeros_like(num))
+
+
 class FedAvg:
     name = "fedavg"
 
@@ -33,7 +43,9 @@ class FedAvg:
         self.cfg = cfg
 
     def aggregate(self, updates):
-        n = torch.tensor([u["n"] for u in updates], dtype=torch.float32)
+        n = torch.tensor(
+            [u["n"] * _stale_factor(u, self.cfg) for u in updates], dtype=torch.float32
+        )
         w = n / n.sum()
         out = sum(wi * u["delta"] for wi, u in zip(w, updates))
         return out, {"weights": {u["id"]: float(wi) for wi, u in zip(w, updates)}}
@@ -62,6 +74,132 @@ class CosAvg:
         out = sum(wi * u["delta"] for wi, u in zip(w, updates))
         return out, {"weights": {u["id"]: wi for wi, u in zip(w, updates)},
                      "cos": {u["id"]: c for c, u in zip(cos, updates)}}
+
+
+class CoordinateMedian:
+    name = "median"
+
+    def __init__(self, cfg):
+        self.cfg = cfg
+
+    def aggregate(self, updates):
+        D = torch.stack([u["delta"] for u in updates])
+        M = torch.stack([u["mask"] for u in updates])
+        masked = torch.where(M, D, torch.full_like(D, float("nan")))
+        out = torch.nanmedian(masked, dim=0).values
+        out = torch.nan_to_num(out, nan=0.0)
+        equal = 1.0 / len(updates)
+        return out, {"weights": {u["id"]: equal for u in updates}}
+
+
+class TrimmedMean:
+    name = "trimmed_mean"
+
+    def __init__(self, cfg):
+        self.cfg = cfg
+
+    def aggregate(self, updates):
+        ratio = getattr(self.cfg, "trim_ratio", 0.2)
+        if not 0 <= ratio < 0.5:
+            raise ValueError("trim_ratio must be in [0, 0.5)")
+        D = torch.stack([u["delta"] for u in updates])
+        M = torch.stack([u["mask"] for u in updates])
+        values = torch.where(M, D, torch.full_like(D, float("inf")))
+        values = values.sort(dim=0).values
+        counts = M.sum(dim=0)
+        trim = torch.floor(counts * ratio).long()
+        rank = torch.arange(len(updates))[:, None]
+        keep = (rank >= trim[None, :]) & (rank < (counts - trim)[None, :])
+        safe = torch.where(keep, values, torch.zeros_like(values))
+        out = safe.sum(0) / keep.sum(0).clamp(min=1)
+        equal = 1.0 / len(updates)
+        return out, {"weights": {u["id"]: equal for u in updates}}
+
+
+def _pair_distance(a: dict, b: dict) -> torch.Tensor:
+    overlap = a["mask"] & b["mask"]
+    if not overlap.any():
+        return torch.tensor(float("inf"))
+    diff = a["delta"][overlap] - b["delta"][overlap]
+    # Normalize for different overlap sizes so losses do not look artificially close.
+    return diff.pow(2).mean()
+
+
+class MultiKrum:
+    name = "multi_krum"
+
+    def __init__(self, cfg, single: bool = False):
+        self.cfg = cfg
+        self.single = single
+        self.name = "krum" if single else "multi_krum"
+
+    def aggregate(self, updates):
+        n = len(updates)
+        f = min(getattr(self.cfg, "krum_byzantine", 0), max(0, n - 3))
+        neighbour_count = n - f - 2
+        if neighbour_count < 1:
+            raise ValueError("Krum requires at least f + 3 received updates")
+        scores = []
+        for i, update in enumerate(updates):
+            distances = sorted(
+                float(_pair_distance(update, other))
+                for j, other in enumerate(updates) if i != j
+            )
+            scores.append(sum(distances[:neighbour_count]))
+        order = sorted(range(n), key=lambda idx: scores[idx])
+        requested = getattr(self.cfg, "multi_krum_m", 0)
+        selected_count = 1 if self.single else (requested or neighbour_count)
+        selected = order[:min(selected_count, n)]
+        chosen = [updates[idx] for idx in selected]
+        D = torch.stack([u["delta"] for u in chosen])
+        M = torch.stack([u["mask"] for u in chosen])
+        weights = torch.tensor(
+            [u["n"] * _stale_factor(u, self.cfg) for u in chosen], dtype=torch.float32
+        )
+        out = _masked_weighted_average(D, M, weights)
+        total = float(weights.sum()) or 1.0
+        result_weights = {u["id"]: 0.0 for u in updates}
+        for update, weight in zip(chosen, weights):
+            result_weights[update["id"]] = float(weight) / total
+        return out, {
+            "weights": result_weights,
+            "krum_scores": {u["id"]: scores[idx] for idx, u in enumerate(updates)},
+            "selected": [u["id"] for u in chosen],
+            "effective_f": f,
+        }
+
+
+class FLTrust:
+    name = "fltrust"
+    needs_root = True
+
+    def __init__(self, cfg):
+        self.cfg = cfg
+
+    def aggregate(self, updates, root=None):
+        if root is None:
+            raise ValueError("FLTrust requires a trusted root update")
+        D = torch.stack([u["delta"] for u in updates])
+        M = torch.stack([u["mask"] for u in updates])
+        scores, normalized = [], []
+        for idx, update in enumerate(updates):
+            mask = M[idx]
+            score = max(_cos(D[idx][mask], root[mask]), 0.0) if mask.any() else 0.0
+            scores.append(score * _stale_factor(update, self.cfg))
+            local_norm = D[idx][mask].norm() if mask.any() else torch.tensor(0.0)
+            root_norm = root[mask].norm() if mask.any() else torch.tensor(0.0)
+            scale = root_norm / (local_norm + 1e-12)
+            normalized.append(D[idx] * scale)
+        weights = torch.tensor(scores, dtype=torch.float32)
+        if float(weights.sum()) <= 0:
+            return torch.zeros_like(root), {"weights": {u["id"]: 0.0 for u in updates}}
+        Dn = torch.stack(normalized)
+        out = _masked_weighted_average(Dn, M, weights)
+        weights /= weights.sum()
+        return out, {
+            "weights": {u["id"]: float(w) for u, w in zip(updates, weights)},
+            "trust_score": {u["id"]: float(s) for u, s in zip(updates, scores)},
+        }
 
 
 class CCRA:
@@ -98,9 +236,10 @@ class CCRA:
 
     def aggregate(self, updates, root=None):
         cfg = self.cfg
-        ctx = self.use_context
+        use_context = self.use_context
         D = torch.stack([u["delta"] for u in updates])                 # K x P
-        M = torch.stack([u["mask"] for u in updates]) if ctx else torch.ones_like(D, dtype=torch.bool)
+        M = (torch.stack([u["mask"] for u in updates]) if use_context
+             else torch.ones_like(D, dtype=torch.bool))
         n = torch.tensor([u["n"] for u in updates], dtype=torch.float32)
 
         # 1. reference direction: trusted root update, else masked coordinate-wise median
@@ -122,7 +261,7 @@ class CCRA:
         for k, u in enumerate(updates):
             m = M[k]
             c = _cos(D[k][m], ref[m]) if m.any() else 0.0
-            if ctx and cfg.noise_scale > 0 and math.isfinite(u["tel"]["sinr_db"]):
+            if use_context and cfg.noise_scale > 0 and math.isfinite(u["tel"]["sinr_db"]):
                 rho = 1.0 / math.sqrt(1.0 + (cfg.noise_scale * 10 ** (-u["tel"]["sinr_db"] / 20)) ** 2)
                 c = c / rho
             cal.append(c)
@@ -130,14 +269,29 @@ class CCRA:
         pos = cal_t[cal_t > 0]
         med_c = float(pos.median()) if len(pos) else 0.0
 
-        # 4. behaviour score, 5. reputation
+        # 4. behaviour score, 5. reputation. Poor links reduce the strength of
+        # the evidence rather than being treated as evidence of maliciousness.
         weights = {}
         for k, u in enumerate(updates):
             b = min(max(cal[k] / med_c, 0.0), 1.0) if med_c > 0 else 0.0
             prev = self.trust.get(u["id"], 1.0)
-            t = cfg.ccra_beta * prev + (1 - cfg.ccra_beta) * b
+            context = u.get("ctx", {}) if use_context else {}
+            pdr = float(u["tel"].get("pdr", 1.0))
+            reliability = float(context.get("reliability", 1.0))
+            handover_factor = 0.5 if context.get("handover", False) else 1.0
+            distance = float(context.get("distance_m", 0.0))
+            geometry_factor = 1.0 / (1.0 + distance / max(cfg.area_m, 1.0))
+            speed = abs(float(context.get("speed_mps", 0.0)))
+            mobility_factor = 1.0 / (1.0 + speed / 30.0)
+            evidence = min(max(
+                pdr * reliability * handover_factor * geometry_factor * mobility_factor,
+                0.0,
+            ), 1.0)
+            step = (1 - cfg.ccra_beta) * evidence
+            t = prev + step * (b - prev)
             self.trust[u["id"]] = t
-            weights[u["id"]] = t if t >= cfg.ccra_gate else 0.0
+            stale = _stale_factor(u, cfg)
+            weights[u["id"]] = t * stale if t >= cfg.ccra_gate else 0.0
 
         w = torch.tensor([weights[u["id"]] for u in updates]) * n          # K
         # 7. masked weighted average
@@ -155,6 +309,16 @@ def build_aggregator(name: str, cfg):
         return FedAvg(cfg)
     if name == "cosavg":
         return CosAvg(cfg)
+    if name == "median":
+        return CoordinateMedian(cfg)
+    if name == "trimmed_mean":
+        return TrimmedMean(cfg)
+    if name == "krum":
+        return MultiKrum(cfg, single=True)
+    if name == "multi_krum":
+        return MultiKrum(cfg)
+    if name == "fltrust":
+        return FLTrust(cfg)
     if name == "ccra":
         return CCRA(cfg, use_context=True)
     if name == "ccra_noctx":  # ablation: CCRA without channel context

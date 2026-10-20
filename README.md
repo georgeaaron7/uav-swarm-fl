@@ -1,5 +1,11 @@
 # Context-Aware Byzantine-Resilient Federated Learning for Tactical UAV Swarms
 
+> **Result provenance:** the Month 1 and Months 2–3 numbers below are preserved
+> historical results from the earlier centralized simulator. The hierarchical,
+> trace-driven, multi-attack extension is implemented later in this document;
+> its results must be generated with `run_experiments.py` and are not silently
+> substituted into the earlier tables.
+
 ## Month 1: Foundation & Baseline (weeks 1–4)
 
 This month's goal was a standard federated learning pipeline with **no robustness** in PyTorch,
@@ -174,6 +180,130 @@ Under non-IID data, cosine similarity to the *mean or median* update (the CosAvg
 
 ### Run
 ```powershell
-python run_experiments.py        # 13 runs, about 1 h on an 8-core CPU
+python run_experiments.py --profile legacy --out-dir results/compare  # original 13-run matrix
 python plot_compare.py           # figures + results/compare/RESULTS.md
 ```
+
+---
+
+## Guide-requested extension: mobility, HFL, measured channels, and Byzantine benchmarks
+
+### Hierarchical federation and handover
+
+`--topology hierarchical` creates multiple ground base stations. Each UAV trains
+from its serving BS model, each BS performs intra-cell aggregation, and the edge
+models are sample-weighted into a global model every `--global-sync-every`
+rounds. The synchronized model is then broadcast to all BSs. Association uses
+received power; a new cell must exceed the serving cell by
+`--handover-hysteresis-db` for `--handover-ttt` consecutive rounds. Client
+identity and CCRA reputation survive handover.
+
+```bash
+python run_baseline.py \
+  --name hfl_label_ccra \
+  --topology hierarchical --num-base-stations 3 --global-sync-every 5 \
+  --channel lossy --jammed-ids 2,5,9 \
+  --attack label_flip --malicious-ids 0,3,6 \
+  --aggregator ccra --partition dirichlet
+```
+
+Every round records serving cells, handovers, per-cell participants, edge/global
+synchronization, PDR, latency, staleness, honest rejection, attacker acceptance,
+and effective malicious aggregation weight.
+
+### DeepSense 6G Scenario 23 traces
+
+[DeepSense 6G Scenario 23](https://www.deepsense6g.net/scenarios/Scenarios%2020-29/scenario-23)
+is the measurement source selected for the UAV link. It contains synchronized
+60 GHz beam-power vectors, GPS, altitude, distance, speed, pitch, and roll from
+a mobile drone and one stationary BS. Download access requires a DeepSense
+account; the raw archive is deliberately excluded from Git.
+
+Prepare and use it as follows:
+
+```bash
+python scripts/prepare_deepsense23.py /path/to/Scenario23 \
+  --out data/channel_traces/deepsense23.npz
+
+python run_baseline.py \
+  --name hfl_trace_ccra \
+  --topology hierarchical --num-base-stations 3 \
+  --channel trace --channel-trace-path data/channel_traces/deepsense23.npz \
+  --aggregator ccra --attack sign_flip --malicious-ids 0,3,6
+```
+
+The importer stores the maximum measured beam-power value and its source sample
+index. If the downloaded release needs an absolute-power calibration, apply an
+explicit offset with `--power-offset-db` during preparation or
+`--trace-rx-power-offset-db` at runtime; do not silently assume units.
+
+Scenario 23 is a **single-BS measurement**, so it does not directly contain
+multi-cell handovers. For additional simulated BSs, received power is adjusted
+from the measured reference using relative 3-D distance and the configured
+path-loss exponent. `assumptions.json` records this limitation. Packet errors,
+jamming, Shannon-rate upload latency, deadline misses, and staleness are derived
+or simulated rather than claimed as measurements from DeepSense.
+
+### Attacks and defenses
+
+Available attacks:
+
+| CLI name | Type | Behavior |
+|---|---|---|
+| `label_flip` | Data poisoning | Maps label `c` to `9-c` before local training |
+| `sign_flip` | Model poisoning | Sends `-attack_scale × delta` |
+| `gaussian` | Model poisoning | Sends deterministic seeded Gaussian noise scaled to honest-update RMS |
+| `alie` | Model poisoning | Shifts within the honest coordinate-wise mean/standard-deviation envelope |
+| `ipm` | Model poisoning | Sends a vector opposite the honest mean direction |
+
+ALIE and IPM intentionally model a strong attacker that observes honest updates
+inside its serving cell. This assumption is written to `assumptions.json`.
+
+Available aggregators are `fedavg`, `cosavg`, `median`, `trimmed_mean`, `krum`,
+`multi_krum`, `fltrust`, `ccra`, and `ccra_noctx`. FLTrust and both CCRA variants
+use the same clean 500-image root dataset. Krum's effective Byzantine count is
+limited by the number of updates received in a cell; cells with fewer than three
+updates use a recorded FedAvg fallback.
+
+CCRA treats poor delivery, recent handover, and low historical link reliability
+as *weak evidence*, not evidence of maliciousness. These factors slow reputation
+changes, while gradient direction against the trusted root remains the behavioral
+signal. Stale updates are separately down-weighted.
+
+### Reproducible evaluation
+
+```bash
+# Two-round interface and compatibility check
+python run_experiments.py --profile smoke --parallel 2
+
+# Multi-seed benchmark
+python run_experiments.py \
+  --profile core --seeds 41 42 43 --rounds 30 --parallel 2
+
+# Include measurement-driven channel scenarios
+python run_experiments.py \
+  --profile core --seeds 41 42 43 \
+  --trace-path data/channel_traces/deepsense23.npz
+
+python analyze_benchmark.py results/benchmark
+python plot_benchmark.py results/benchmark
+```
+
+The analyzer produces `benchmark_summary.csv` and `BENCHMARK_SUMMARY.md` with
+mean and sample standard deviation across completed seeds. Full benchmark output
+is ignored by Git until results have been reviewed and deliberately selected for
+publication.
+
+### New implementation files
+
+| File | Purpose |
+|---|---|
+| `fl/topology.py` | Base-station layout, UAV positions, association, hysteresis, and handover state |
+| `fl/channel_traces.py` | Validated compact trace loader with source-sample provenance |
+| `scripts/prepare_deepsense23.py` | Scenario 23 preprocessing without redistributing raw data |
+| `fl/attacks.py` | Label/model poisoning definitions and explicit attacker assumptions |
+| `fl/aggregators.py` | Statistical, Krum-family, FLTrust, CosAvg, and CCRA defenses |
+| `fl/server.py` | Intra-cell aggregation, inter-cell synchronization, telemetry, and metrics |
+| `run_experiments.py` | Resumable clean/attack × channel × defense experiment matrix |
+| `analyze_benchmark.py` | Multi-seed mean/standard-deviation report |
+| `plot_benchmark.py` | Accuracy heatmap and honest-rejection/attacker-acceptance trade-off plot |

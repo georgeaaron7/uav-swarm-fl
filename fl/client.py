@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 
 from .data import TensorImageDataset, augment_batch
+from .attacks import validate_attack
 
 
 @dataclass
@@ -51,18 +52,21 @@ class DroneClient:
 
         # Hooks for later phases.
         self.is_malicious = False
+        self.attack = "none"
         self.position = None
         self.link_telemetry: dict = {}
         self.context: dict = {}
         self.staleness: int = 0
 
     def make_malicious(self, attack: str, num_classes: int = 10) -> None:
-        """Byzantine drone. label_flip: every label c becomes (C-1-c), e.g. airplane<->truck."""
+        """Mark this drone malicious and apply any data-poisoning transform."""
+        validate_attack(attack)
+        if attack == "none":
+            return
         self.is_malicious = True
+        self.attack = attack
         if attack == "label_flip":
             self.y = (num_classes - 1) - self.y
-        else:
-            raise ValueError(f"Unknown attack '{attack}'")
 
     @property
     def num_samples(self) -> int:
