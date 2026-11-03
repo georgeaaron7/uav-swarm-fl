@@ -1,0 +1,33 @@
+\begin{tabular}{@{}llccc@{}}
+\toprule
+Attack & Method & Ideal & Trace, 15 dB & Trace, 5 dB \\
+\midrule
+No attack & FedAvg & \textbf{59.2} & \textbf{59.3} & 54.1 \\
+ & Median & 52.5 & 52.7 & 49.7 \\
+ & FLTrust & 52.5 & 51.5 & 52.9 \\
+ & No-context & 57.1 & 56.7 & 51.1 \\
+ & Mask-only & 57.1 & 57.5 & \textbf{54.7} \\
+ & CCRA (full) & 55.4 & 56.6 & 52.6 \\
+\midrule
+Sign flip & FedAvg & 10.0 & 10.0 & 10.0 \\
+ & Median & 10.0 & 19.6 & 12.4 \\
+ & FLTrust & 50.0 & 49.9 & \textbf{50.6} \\
+ & No-context & \textbf{54.2} & \textbf{53.8} & 46.1 \\
+ & Mask-only & 54.2 & 53.6 & 49.9 \\
+ & CCRA (full) & 52.5 & 52.8 & 46.5 \\
+\midrule
+ALIE & FedAvg & 49.8 & 46.9 & 42.0 \\
+ & Median & 35.4 & 28.4 & 28.1 \\
+ & FLTrust & 49.9 & 50.6 & 49.6 \\
+ & No-context & \textbf{52.9} & 52.6 & 46.0 \\
+ & Mask-only & 52.9 & \textbf{52.7} & \textbf{50.8} \\
+ & CCRA (full) & 52.8 & 51.9 & 46.9 \\
+\midrule
+IPM & FedAvg & 27.0 & 42.9 & 36.0 \\
+ & Median & 13.4 & 25.3 & 23.5 \\
+ & FLTrust & 50.5 & 49.7 & \textbf{50.0} \\
+ & No-context & \textbf{50.7} & \textbf{52.3} & 43.6 \\
+ & Mask-only & 50.7 & 51.7 & 47.7 \\
+ & CCRA (full) & 50.0 & 51.0 & 44.5 \\
+\bottomrule
+\end{tabular}

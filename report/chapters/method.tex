@@ -1,0 +1,230 @@
+\chapter{Theoretical Study}
+\label{ch:method}
+
+This chapter describes the simulated system, the attacker and the aggregation rules
+compared, and analyses the reputation update. Chapter~\ref{ch:results} describes
+how they were evaluated. All of it is implemented in the
+project repository; file names are given where they help locate the code.
+
+\section{Hierarchical Federated Learning for a UAV Swarm}
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  font=\small, >={Stealth[length=5pt]},
+  bs/.style={draw, fill=blue!8, rounded corners=2pt, minimum width=20mm, minimum height=9mm, align=center},
+  uav/.style={circle, draw, fill=white, inner sep=0pt, minimum size=6mm},
+  bad/.style={uav, fill=red!25},
+  cloud/.style={draw, fill=gray!10, rounded corners=2pt, minimum width=70mm, minimum height=8mm, align=center}]
+  \node[cloud] (g) at (0,4.2) {Global synchronization of edge models every $E$ rounds};
+  \foreach \x/\n in {-5/1,0/2,5/3} {
+    \node[bs] (b\n) at (\x,2.2) {BS$_\n$\\{\footnotesize edge aggregation, root set $\mathcal{D}_0$}};
+    \draw[<->, gray, thick] (b\n) -- (g);
+  }
+  \node[uav] (u1) at (-6.4,0) {1};  \node[bad] (u2) at (-5,-0.4) {2};  \node[uav] (u3) at (-3.6,0) {3};
+  \node[uav] (u4) at (-1.3,-0.3) {4}; \node[uav] (u5) at (0,0.05) {5};  \node[bad] (u6) at (1.3,-0.3) {6};
+  \node[uav] (u7) at (3.6,0) {7};   \node[uav] (u8) at (5,-0.4) {8};   \node[bad] (u9) at (6.4,0) {9};
+  \foreach \u/\b in {1/1,2/1,4/2,5/2,6/2,8/3,9/3} \draw[->] (u\u) -- (b\b);
+  \draw[->, dashed, red!70!black, thick] (u3) -- node[pos=0.5, right, fill=white, inner sep=1pt] {\footnotesize packets lost} (b1);
+  \draw[->, dotted, very thick, blue!60!black] (u7) to[bend left=20] node[pos=0.45, above, fill=white, inner sep=1pt] {\footnotesize handover} (b2);
+  \node at (0,-1.3) {\tikz\node[uav]{};~honest UAV \qquad \tikz\node[bad]{};~Byzantine UAV};
+\end{tikzpicture}
+\caption{Hierarchical FL over a UAV swarm. Each base station aggregates the updates of
+the UAVs it serves, some of which arrive with lost packets; edge models are
+synchronized every $E$ rounds.}
+\label{fig:system}
+\end{figure}
+
+Figure~\ref{fig:system} shows the system. $K$ UAVs are served by $B$ ground base
+stations (BSs). Each UAV $k$ holds a private dataset $\mathcal{D}_k$ of $n_k$ images.
+In every round $t$:
+\begin{enumerate}
+\item each UAV attached to BS $b$ starts from that BS's edge model $\mathbf{w}^t_b$
+  and trains it for one local epoch of SGD on $\mathcal{D}_k$;
+\item it uploads the update $\boldsymbol{\Delta}^t_k$ (new local model minus the edge
+  model), which is split into packets of $L$ parameters;
+\item the BS aggregates the updates it receives and sets
+  $\mathbf{w}^{t+1}_b=\mathbf{w}^t_b+\mathrm{Agg}(\cdot)$;
+\item every $E$ rounds the edge models are averaged, weighted by the number of
+  training samples held by the UAVs in each cell, and the result is sent back to
+  every BS.
+\end{enumerate}
+UAVs attach to the BS with the strongest received power. A UAV hands over only when
+another BS is stronger by a hysteresis margin of 3\,dB for two consecutive rounds,
+which avoids ping-pong handovers (\texttt{fl/topology.py}).
+
+\subsection{Dataset and Model}
+Images come from CIFAR-10, modified to resemble aerial imagery
+(\texttt{fl/data.py}). Each image is rotated by a random multiple of
+$90^\circ$, since a downward-looking camera has no preferred orientation, and with
+probability 0.3 or 0.2 is down-sampled to $24\times24$ or $16\times16$ pixels and
+up-sampled again to imitate higher flight altitudes. The 50{,}000 training images
+are split among the UAVs either uniformly (IID) or with Dirichlet($\alpha$)
+class proportions; 500 images (50 per class) are held out as the trusted root set
+$\mathcal{D}_0$ and are never given to any UAV.
+
+The classifier, TacticalEdgeCNN, is a small convolutional network with about 156k
+parameters and group normalization, chosen so that it could plausibly be trained on
+board. Group normalization is used instead of batch normalization because batch
+statistics do not average well across clients with different class mixes.
+
+\section{Wireless Uplink Models}
+\label{sec:channel}
+The channel decides, for every packet of every update, whether it arrives
+(\texttt{fl/channel.py}). Two models are used.
+
+\subsection{Synthetic Jammed Channel}
+UAVs move by a random walk at 100\,m altitude over an $800\times800$\,m area. The
+received power from UAV $k$ at its serving BS is
+\begin{equation}
+  P_{\mathrm{rx},k} = P_{\mathrm{tx}} - \mathrm{PL}(d_k) + 10\log_{10}|h_k|^2,
+  \qquad \mathrm{PL}(d)=40+10\eta\log_{10}d \ \text{dB},
+\end{equation}
+with $P_{\mathrm{tx}}=20$\,dBm, path-loss exponent $\eta=2.2$, and Rayleigh fading
+$|h_k|^2\sim\mathrm{Exp}(1)$. A ground jammer of power 10\,dBm targets a sector of
+the swarm, and the SINR is
+\begin{equation}
+  \gamma_k = P_{\mathrm{rx},k} - 10\log_{10}\bigl(N_0 + J_k\bigr),
+\end{equation}
+where $N_0$ corresponds to $-90$\,dBm and $J_k$ is the jamming power received at
+UAV $k$'s link (zero for UAVs outside the jammed sector).
+
+\subsection{Measured-Trace Channel}
+For realism we replay a measured UAV link from DeepSense~6G
+Scenario~23 \citep{alkhateeb2023deepsense,charan2025drone}, in which a drone flies
+around a ground receiver that records 60\,GHz beam powers together with position,
+altitude and speed. The dataset's power values are uncalibrated, so only their
+variation relative to the median is used:
+\begin{equation}
+  \gamma_k = \bar\gamma + \bigl(P^{\mathrm{meas}}_k - \mathrm{med}\,P^{\mathrm{meas}}\bigr)
+  - 10\eta\log_{10}\frac{d_{k,b}}{d_{k,1}},
+\end{equation}
+where $\bar\gamma$ is an assumed reference SNR and the last term adjusts the measured
+link to the distance of a virtual BS $b$. Each UAV replays a different flight
+segment. Two settings are used: $\bar\gamma=15$\,dB, a good link, and
+$\bar\gamma=5$\,dB, a weak link. They replay identical trajectories, so only the
+link quality differs.
+
+\subsection{Packet Erasures}
+In both models each packet is lost independently with probability
+\begin{equation}
+  p_k = \frac{1}{1+\exp\bigl(a(\gamma_k-\gamma_{\mathrm{th}})\bigr)},
+\end{equation}
+with $a=1$ and $\gamma_{\mathrm{th}}=3$\,dB. An update whose transmission time at
+the Shannon rate exceeds the 2\,s round deadline is dropped entirely. The BS
+therefore receives $\tilde{\boldsymbol\Delta}_k=\mathbf{m}_k\odot\boldsymbol\Delta_k$,
+where the mask $\mathbf{m}_k$ is 1 for delivered coordinates and 0 elsewhere. The BS
+also records link telemetry for each UAV: SNR, packet delivery ratio (PDR), long-run
+reliability, distance, speed and handover state.
+
+\section{Threat Model}
+A fixed set of $f=3$ of the $K=10$ UAVs is Byzantine. They follow the protocol (they
+train, transmit on time and use the same channel) but replace their update with one
+of the following (\texttt{fl/attacks.py}, \texttt{fl/client.py}):
+\begin{itemize}
+\item \textbf{Label flip} (data poisoning): train on labels mapped $c\mapsto 9-c$.
+\item \textbf{Sign flip}: send $-\lambda\boldsymbol\Delta_k$ with $\lambda=5$.
+\item \textbf{ALIE-style} \citep{baruch2019alie}: send
+  $\boldsymbol\mu-z\,\boldsymbol\sigma\odot\mathrm{sign}(\boldsymbol\mu)$ with $z=1.5$,
+  where $\boldsymbol\mu$ and $\boldsymbol\sigma$ are the mean and standard deviation of
+  the honest updates in the attacker's cell.
+\item \textbf{IPM} \citep{xie2019ipm}: send $-\epsilon\boldsymbol\mu$ with $\epsilon=0.5$.
+\end{itemize}
+The ALIE and IPM attackers know the honest updates of their cell, which is a strong
+assumption chosen to stress the defences. The BS's telemetry is assumed authentic;
+attacks that forge it are left for Phase~II.
+
+\section{Aggregation Rules}
+All rules receive exactly the same inputs: the received updates, their masks, sample
+counts and telemetry (\texttt{fl/aggregators.py}).
+
+\subsection{Baselines}
+\textbf{FedAvg} \citep{mcmahan2017fedavg} averages the received updates weighted by
+$n_k$, with lost coordinates counted as zeros. \textbf{CosAvg}, the aggregation of the
+earlier UAV-FL work \citep{liao2023tee} as re-implemented here, weights each update by
+$\max(0,\cos(\boldsymbol\Delta_k,\bar{\boldsymbol\Delta}))\,n_k$, where
+$\bar{\boldsymbol\Delta}$ is the FedAvg mean. \textbf{Coordinate-wise
+median} \citep{yin2018median} takes the median of the delivered values of each
+parameter. \textbf{FLTrust} \citep{cao2021fltrust} computes a root update $\mathbf{r}$
+on $\mathcal{D}_0$ (with as many local steps as a typical UAV), weights each UAV by
+$\max(0,\cos)$ to $\mathbf{r}$ on delivered coordinates, and rescales each update to
+the norm of $\mathbf{r}$.
+
+\subsection{Context-Calibrated Robust Aggregation (CCRA)}
+CCRA is the aggregator designed in this project. Each BS applies the following
+steps every round.
+\begin{enumerate}
+\item \textbf{Reference update.} Compute $\mathbf{r}$ on $\mathcal{D}_0$, as in FLTrust.
+  Our diagnostics showed that, under non-IID data, the mean or median of the UAV
+  updates is not a reliable reference: attackers and honest UAVs with skewed data
+  had similar cosine similarity to it.
+\item \textbf{Norm clipping.} Let $\rho_k$ be the RMS of the delivered entries of
+  $\tilde{\boldsymbol\Delta}_k$ and scale the update by
+  $s_k=\min(1,\ \mathrm{med}_j\rho_j/\rho_k)$, which defeats scaling attacks.
+\item \textbf{Masked similarity.}
+  $c_k=\cos\bigl(\mathcal{S}(s_k\tilde{\boldsymbol\Delta}_k;\mathbf{m}_k),\
+  \mathcal{S}(\mathbf{r};\mathbf{m}_k)\bigr)$, where $\mathcal{S}(\cdot;\mathbf{m})$
+  keeps only the coordinates with $\mathbf{m}=1$. Lost packets therefore do not make
+  an honest update look dissimilar.
+\item \textbf{Behaviour score.} $b_k=\mathrm{clip}\bigl(c_k/\mathrm{med}_{j:c_j>0}c_j,\
+  0,\ 1\bigr)$. Updates pointing away from the reference get $b_k=0$.
+\item \textbf{Reputation.} With memory $\beta$, initial trust 1 and evidence
+  $e_k\in[0,1]$,
+  \begin{equation}
+    T_k \leftarrow T_k+\eta_k(b_k-T_k),\qquad
+    \eta_k=\begin{cases}(1-\beta)\,e_k, & b_k>T_k,\\ 1-\beta, & b_k\le T_k.\end{cases}
+    \label{eq:reputation}
+  \end{equation}
+  Penalties apply at full rate, so an attacker cannot hide by dropping its own
+  packets; only rewards are slowed on poor links.
+\item \textbf{Gating and averaging.} UAVs with $T_k<\tau$ are excluded. The others get
+  weight $\omega_k=n_kT_k$, discounted for staleness, and each coordinate is averaged
+  only over the UAVs that delivered it:
+  \begin{equation}
+    \mathrm{Agg}_p=\frac{\sum_k\omega_k\,m_{k,p}\,s_k\tilde\Delta_{k,p}}
+                      {\sum_k\omega_k\,m_{k,p}}.
+    \label{eq:masked-average}
+  \end{equation}
+\end{enumerate}
+The evidence term multiplies five link factors:
+\begin{equation}
+  e_k=\mathrm{PDR}_k\cdot R_k\cdot h_k\cdot\frac{1}{1+d_k/A}\cdot\frac{1}{1+|v_k|},
+\end{equation}
+namely the packet delivery ratio, long-run reliability, a handover factor
+($h_k=0.5$ during a handover, 1 otherwise), a distance factor with $A$ the area size,
+and a normalized-speed factor.
+
+\subsection{Ablation Variants}
+To find out which part of CCRA matters, three variants are compared.
+\begin{itemize}
+\item \textbf{CCRA (full)}: all steps, with evidence $e_k$ from telemetry.
+\item \textbf{Mask-only}: $e_k=1$, but the masks are used in steps 2--6.
+\item \textbf{No-context}: $e_k=1$ and $\mathbf{m}_k=\mathbf{1}$, so lost
+  coordinates enter the computation as zeros, as a channel-unaware server would see
+  them.
+\end{itemize}
+The code also has an option to correct $c_k$ for the noise expected at the
+reported SINR. It is inactive in the controlled study, which adds no residual noise
+to delivered parameters, so the full-versus-mask-only contrast isolates $e_k$.
+
+\subsection{Analysis of the Reputation Update}
+\label{sec:fixed-point}
+The asymmetric update~\eqref{eq:reputation} has a consequence that was not intended.
+Suppose a UAV's evidence is constant, $e_k=e$, and its scores $b$ are drawn
+independently from some distribution. The expected change in reputation is
+\begin{equation}
+  \mathbb{E}[\Delta T] = (1-\beta)\Bigl(e\,\mathbb{E}\bigl[(b-T)^+\bigr]
+                        - \mathbb{E}\bigl[(T-b)^+\bigr]\Bigr),
+\end{equation}
+so the reputation settles where
+\begin{equation}
+  e\,\mathbb{E}\bigl[(b-T^\star)^+\bigr] = \mathbb{E}\bigl[(T^\star-b)^+\bigr].
+  \label{eq:fixed-point}
+\end{equation}
+For $e=1$ the two sides balance at $T^\star=\mathbb{E}[b]$, the mean score. As $e$
+decreases, the left side shrinks, and $T^\star$ must move down until few scores lie
+below it; in the limit $e\to0$ it approaches the lowest score the UAV ever receives.
+An honest UAV with skewed data has noisy scores, so on a weak link its reputation
+tracks its worst rounds and falls below the gate $\tau$ more often. An attacker's
+scores are already near zero, so slowing its rewards adds little. Section~\ref{sec:mechanism}
+tests this prediction against the measured gate decisions.

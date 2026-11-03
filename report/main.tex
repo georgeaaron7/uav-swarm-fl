@@ -1,0 +1,113 @@
+% B.Tech project report, NIT Warangal.
+% Layout follows the institute's LaTeX thesis template (Template_for_Thesis, 2024):
+% A4, Computer Modern 12 pt, 1.5 spacing, 30/20 mm side margins, left-aligned
+% chapter heads, blue hyperlinks, author-year references, appendices after them.
+% Compiles on Overleaf with pdfLaTeX + BibTeX. Figures and numbers in figures/ and
+% generated/ are copied in by scripts/make_paper_figures.py; do not edit them by hand.
+\documentclass[12pt,a4paper,oneside,openany]{report}
+
+\usepackage[a4paper,left=30mm,right=20mm,top=30mm,bottom=25mm,
+            headheight=15pt,headsep=8mm,footskip=12mm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage[T1]{fontenc}
+\usepackage{setspace}
+\setstretch{1.5}
+
+\usepackage{graphicx}
+\graphicspath{{figures/}}
+\usepackage{booktabs,tabularx,array,longtable}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta}
+\usepackage[font=small,labelfont=bf,labelsep=space]{caption}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{indentfirst} % the template indents the first paragraph after a heading
+\usepackage{fancyhdr}
+\usepackage[square,sort,comma]{natbib}
+\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+
+\input{info}
+\input{generated/numbers}
+
+% Paragraphs: 10 mm indent, a little space between paragraphs (as in the template).
+\setlength{\parindent}{10mm}
+\setlength{\parskip}{7pt}
+\setlength{\emergencystretch}{2em} % lets lines with unbreakable file names wrap cleanly
+
+% Chapter heads: "Chapter N" and the title on separate lines, left-aligned, bold.
+% Unnumbered heads (Contents, Abstract, References, ...) sit at the same height.
+\newlength{\ChapterTop}\setlength{\ChapterTop}{55.5pt}
+\titleformat{\chapter}[display]{\Large\bfseries}{\chaptertitlename\ \thechapter}{25.6pt}{\Large}
+\titleformat{name=\chapter,numberless}[block]{\Large\bfseries}{}{0pt}{\Large}
+\titlespacing{\chapter}{0pt}{\ChapterTop}{24.5pt}
+\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}
+\setcounter{secnumdepth}{2}
+\setcounter{tocdepth}{2}
+\titleformat{\subsubsection}[runin]{\normalsize\bfseries\itshape}{}{0pt}{}[.]
+
+% Running head on continuation pages: chapter title left, page number right,
+% rules above and below; chapter-opening pages show the number centred.
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\nouppercase{\leftmark}}
+\fancyhead[R]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+\renewcommand{\chaptermark}[1]{\markboth{#1}{}}
+\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\thepage}%
+  \renewcommand{\headrulewidth}{0pt}\renewcommand{\footrulewidth}{0pt}}
+
+\renewcommand{\bibname}{References}
+\renewcommand{\contentsname}{Contents}
+
+% Numbers used in prose.
+\newcommand{\pp}{\,pp}
+\newcommand{\ci}[2]{$[#1,\,#2]$}
+\newcommand{\Student}[2]{#1 & #2 \\}
+% Unnumbered front-matter chapter that still appears in the contents.
+\newcommand{\FrontChapter}[1]{\chapter*{#1}\addcontentsline{toc}{chapter}{#1}\markboth{#1}{#1}}
+
+\begin{document}
+
+% ---------------------------------------------------------------- front matter
+\pagenumbering{roman}
+\input{frontmatter/title}         % i
+\input{frontmatter/approval}      % ii  Certificate of Approval
+\input{frontmatter/certificate}   % iii
+\input{frontmatter/declaration}   % iv
+\input{frontmatter/acknowledgements} % v
+\input{frontmatter/abstract}      % vi
+
+\clearpage
+\markboth{Contents}{Contents}
+\tableofcontents
+\clearpage
+\phantomsection\addcontentsline{toc}{chapter}{List of Figures}
+\markboth{List of Figures}{List of Figures}
+\listoffigures
+\clearpage
+\phantomsection\addcontentsline{toc}{chapter}{List of Tables}
+\markboth{List of Tables}{List of Tables}
+\listoftables
+\input{frontmatter/abbreviations}
+
+% ---------------------------------------------------------------- main text
+\clearpage
+\pagenumbering{arabic}
+\input{chapters/introduction}
+\input{chapters/literature}
+\input{chapters/method}
+\input{chapters/results}
+\input{chapters/conclusions}
+
+% References, then appendices, as in the template.
+\clearpage
+\phantomsection\addcontentsline{toc}{chapter}{References}
+\bibliographystyle{abbrvnat}
+\bibliography{refs}
+
+\input{chapters/appendix}
+
+\end{document}

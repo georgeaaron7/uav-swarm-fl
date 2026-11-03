@@ -1,0 +1,58 @@
+% List of abbreviations (template page xi), then the symbols used.
+\FrontChapter{List of Abbreviations}
+\thispagestyle{empty}
+
+\begin{longtable}{@{\hspace{12mm}}p{28mm}p{114mm}@{}}
+ALIE & A Little Is Enough (model-poisoning attack) \\
+BS & Base station \\
+CCRA & Context-Calibrated Robust Aggregation (the aggregator studied here) \\
+CI & Confidence interval \\
+CNN & Convolutional neural network \\
+CosAvg & Cosine-similarity weighted averaging \\
+EMA & Exponential moving average \\
+EW & Electronic warfare \\
+FedAvg & Federated averaging \\
+FL & Federated learning \\
+HFL & Hierarchical federated learning \\
+IID & Independent and identically distributed \\
+IPM & Inner-product manipulation (model-poisoning attack) \\
+PDR & Packet delivery ratio \\
+PER & Packet error rate \\
+pp & Percentage points \\
+RMS & Root mean square \\
+SGD & Stochastic gradient descent \\
+SINR & Signal-to-interference-plus-noise ratio \\
+SNR & Signal-to-noise ratio \\
+TEE & Trusted execution environment \\
+UAV & Unmanned aerial vehicle \\
+\end{longtable}
+
+\FrontChapter{List of Symbols}
+\thispagestyle{empty}
+
+\begin{longtable}{@{\hspace{12mm}}p{28mm}p{114mm}@{}}
+$K$ & Number of UAVs (clients) \\
+$B$ & Number of base stations \\
+$E$ & Edge rounds between global synchronizations \\
+$P$ & Number of model parameters \\
+$L$ & Parameters per packet \\
+$f$ & Number of Byzantine UAVs \\
+$\mathcal{D}_k$, $n_k$ & Local dataset of UAV $k$ and its size \\
+$\mathcal{D}_0$ & Trusted root dataset held by each base station \\
+$\mathbf{w}^t$, $\mathbf{w}^t_b$ & Global model and edge model of BS $b$ in round $t$ \\
+$\boldsymbol{\Delta}_k^t$ & Model update sent by UAV $k$ in round $t$ \\
+$\mathbf{m}_k$ & Delivery mask: 1 where the packet carrying a coordinate arrived \\
+$\mathbf{r}$ & Reference update computed on $\mathcal{D}_0$ \\
+$\gamma_k$, $\bar\gamma$ & Uplink SNR of UAV $k$; reference SNR of the trace \\
+$p_k$ & Packet error probability of UAV $k$ \\
+$a$, $\gamma_{\mathrm{th}}$ & Slope and threshold of the packet-error curve \\
+$s_k$ & Norm-clipping factor \\
+$c_k$ & Masked cosine similarity to the reference update \\
+$b_k$ & Behaviour score in $[0,1]$ \\
+$T_k$ & Reputation (trust) of UAV $k$ \\
+$e_k$ & Link evidence in $[0,1]$ that slows reputation rewards \\
+$\beta$, $\tau$ & Reputation memory and exclusion gate \\
+$\omega_k$ & Aggregation weight of UAV $k$ \\
+$\alpha$ & Dirichlet concentration of the non-IID data split \\
+$\lambda$, $z$, $\epsilon$ & Strengths of the sign-flip, ALIE and IPM attacks \\
+\end{longtable}
