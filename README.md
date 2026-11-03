@@ -7,6 +7,29 @@
 > [`results/benchmark_gpu`](results/benchmark_gpu/README.md); those results are
 > kept separate rather than silently substituted into the historical tables.
 
+## Paper and current headline result
+
+The current result is the prespecified 720-run controlled study
+([findings](results/CONTEXT_STUDY_FINAL.md)). It replaces the single-seed
+CCRA-versus-CosAvg claim in the Months 2–3 section below. The study is written up as
+a four-page IEEE letter: [`paper/main.pdf`](paper/main.pdf) ([source and build notes](paper/README.md)).
+
+- **Packet-erasure masking helps.** Comparing and averaging each update only on the
+  coordinates that arrived adds +4.2 pp under attack on a 5 dB link (95% CI
+  [+2.2, +5.9]).
+- **Link telemetry in the reputation update hurts.** Full CCRA is −3.5 pp versus
+  mask-only at 5 dB (CI [−5.1, −2.1]) because it rejects 41% of honest updates.
+- **Root-referenced methods are stable.** FedAvg and coordinate median diverged in 41
+  and 26 of 120 runs; FLTrust and all CCRA variants never diverged.
+
+| Accuracy under attack vs channel | Ablation contrasts | Reputation-gate decisions at 5 dB |
+|---|---|---|
+| ![](paper/figures/accuracy_vs_channel.png) | ![](paper/figures/ablation_contrasts.png) | ![](paper/figures/gate_rates.png) |
+
+Every figure, table and number in the paper is regenerated from the committed CSV by
+`python scripts/make_paper_figures.py`, which also copies them into the Phase I
+B.Tech report: [`report/main.pdf`](report/main.pdf) ([source and layout notes](report/README.md)).
+
 ## Month 1: Foundation & Baseline (weeks 1–4)
 
 This month's goal was a standard federated learning pipeline with **no robustness** in PyTorch,

@@ -27,3 +27,23 @@ results/context_*/study_manifest.json
 
 # In-progress recovery mirror; publish compact reports after final validation.
 results/context_final_gpu/
+
+# LaTeX build output (paper/main.pdf is committed on purpose). Scoped to the
+# document folders: results/ keeps experiment *.log files under version control.
+/paper/**/*.aux
+/paper/**/*.bbl
+/paper/**/*.blg
+/paper/**/*.log
+/paper/**/*.out
+/paper/**/*.synctex.gz
+/report/**/*.aux
+/report/**/*.bbl
+/report/**/*.blg
+/report/**/*.log
+/report/**/*.out
+/report/**/*.synctex.gz
+/paper_overleaf.zip
+/report_overleaf.zip
+
+# Downloaded IEEE PDFs (copyrighted; keep out of the public repo)
+/base_papers/

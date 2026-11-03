@@ -1,0 +1,112 @@
+\chapter{Literature Review}
+\label{ch:lit}
+
+\section{Federated Learning}
+\citet{mcmahan2017fedavg} introduced federated averaging
+(FedAvg). In each round the server sends the global model to a set of clients, each
+client runs a few epochs of stochastic gradient descent on its local data, and the
+server replaces the global model by the average of the returned models, weighted by
+local dataset size. FedAvg works well when client data are independent and
+identically distributed (IID). When each client sees a skewed mix of classes, local
+models drift apart and accuracy falls. \citet{hsu2019noniid}
+proposed sampling each client's class proportions from a Dirichlet distribution with
+concentration $\alpha$, which has become the standard way to control the degree of
+non-IID skew in experiments; we use $\alpha=0.5$.
+
+Hierarchical FL adds an intermediate layer of edge servers. Clients send updates to a
+nearby edge server, which aggregates them frequently, and the edge servers
+synchronize with each other less often. This matches a UAV swarm served by several
+ground base stations, each covering part of the operating area.
+
+\section{Byzantine-Robust Aggregation}
+A single malicious client can move the FedAvg average arbitrarily far, so a large
+body of work replaces the mean by a robust statistic.
+\begin{itemize}
+\item \textbf{Krum} \citep{blanchard2017krum} selects the update whose summed distance
+  to its nearest neighbours is smallest. It requires $n\ge 2f+3$ clients to tolerate
+  $f$ attackers.
+\item \textbf{Coordinate-wise median and trimmed mean} \citep{yin2018median} take the
+  median, or a trimmed mean, of each parameter separately, and come with statistical
+  error guarantees.
+\item \textbf{FLTrust} \citep{cao2021fltrust} gives the server a small clean root
+  dataset. The server computes its own update on that data each round, scores each
+  client by the (clipped at zero) cosine similarity to it, and rescales every client
+  update to the norm of the server update before averaging.
+\end{itemize}
+These rules are evaluated against attacks of increasing strength. A sign-flip attack
+sends a scaled negative of an honest update. ALIE (``A Little Is Enough'')
+\citep{baruch2019alie} shifts each coordinate by a small multiple of the honest
+standard deviation, which is enough to evade distance-based rules. Inner-product
+manipulation (IPM) \citep{xie2019ipm} sends a negative multiple of the honest mean so
+that the aggregate's inner product with the true gradient becomes negative.
+
+Reputation-based defences keep a trust score for each client across rounds, so that
+an attacker caught once stays down-weighted. They suit swarms, whose members persist
+for a whole mission, but recent work shows that adaptive attackers can learn to evade
+them: \citet{liu2026evade} model the attacker's choice between benign and malicious
+rounds as a partially observable Markov decision process over the server's hidden
+trust score, and suppress accuracy under reputation defences that stop static attacks.
+
+\section{Federated Learning over Unreliable Wireless Links}
+In wireless FL the update itself travels over a noisy channel. \citet{shirvanimoghaddam2022erroneous} study FL in which the
+communication links are erroneous; this letter is the base paper for our study of
+lossy links. \citet{barkatsa2024jamming} consider malicious clients that jam the
+non-orthogonal multiple access (NOMA) uplink of legitimate ones, and let every client
+choose its transmit power in a Bayesian game with incomplete information about the
+other clients' types. \citet{li2022dpbyz} combine communication efficiency (1-bit
+compressed sensing of sign-based gradients), differential privacy and Byzantine
+robustness, but do not model lost packets. None of these asks how lost packets
+interact with a robust aggregator: the adversaries in \citet{barkatsa2024jamming}
+attack the channel rather than the model, and the Byzantine-robust method of
+\citet{li2022dpbyz} assumes that every update arrives.
+
+\section{Federated Learning for UAV Swarms}
+\citet{xiao2021uavswarm} propose fully decentralized FL for
+on-board missions of a UAV swarm: UAVs exchange models with neighbours over a
+time-varying graph instead of through a server, using an inexact stochastic parallel
+random-walk ADMM, and the framework is demonstrated on beamforming design. It
+considers neither adversarial UAVs nor packet loss. \citet{liao2023tee} propose
+UAV-assisted FL based on a trusted execution environment (TEE) and aggregate updates
+by their cosine similarity to the mean update (CosAvg); our preliminary study
+re-implements CosAvg as a baseline. Realistic UAV link data have recently become
+available: the DeepSense~6G dataset \citep{alkhateeb2023deepsense} includes a
+scenario with a flying UAV and a ground base station \citep{charan2025drone}, which we
+use to drive packet losses in simulation.
+
+\section{Research Gap}
+Table~\ref{tab:gap} summarizes the gap. Robust rules either compare updates as if
+they were complete, treating a lost packet as a zero, or ignore the channel entirely.
+Channel-aware designs model adversaries, if at all, as jammers rather than as clients
+that send poisoned updates. It is also natural to assume
+that link telemetry (signal quality, delivery ratio, handover state) should make a
+robust aggregator \emph{fairer} to honest UAVs on poor links, but we found no
+controlled test of that assumption. This project provides one.
+
+\begin{table}[ht]
+\centering
+\caption[Coverage of the problem in the reviewed work]{Coverage of the problem in the
+reviewed work. The entries for \citep{shirvanimoghaddam2022erroneous} and
+\citep{liao2023tee} are based on their titles and abstracts and are to be confirmed
+against the full texts.}
+\label{tab:gap}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X
+    *{4}{>{\centering\arraybackslash}p{16mm}}@{}}
+\toprule
+Work & Byzantine clients & Packet loss & UAV setting & Measured channel \\
+\midrule
+FedAvg \citep{mcmahan2017fedavg} & -- & -- & -- & -- \\
+Krum, median \citep{blanchard2017krum,yin2018median} & \checkmark & -- & -- & -- \\
+FLTrust \citep{cao2021fltrust} & \checkmark & -- & -- & -- \\
+Erroneous links \citep{shirvanimoghaddam2022erroneous} & -- & \checkmark & -- & -- \\
+Jamming mitigation \citep{barkatsa2024jamming} & jammers\textsuperscript{a} & \checkmark & -- & -- \\
+DP + Byzantine \citep{li2022dpbyz} & \checkmark & -- & -- & -- \\
+UAV-swarm FL \citep{xiao2021uavswarm} & -- & -- & \checkmark & -- \\
+TEE + CosAvg \citep{liao2023tee} & \checkmark & -- & \checkmark & -- \\
+\textbf{This project} & \checkmark & \checkmark & \checkmark & \checkmark \\
+\bottomrule
+\end{tabularx}
+
+\raggedright\footnotesize\textsuperscript{a}Malicious clients jam the uplink; they do
+not send poisoned updates.
+\end{table}

@@ -1,0 +1,89 @@
+\chapter{Introduction}
+\thispagestyle{empty} % 2.1.5: page 1 of the Introduction bears no number.
+\label{ch:intro}
+
+\section{Background}
+Small unmanned aerial vehicles (UAVs) are now used in groups, or swarms, for
+surveillance, search and rescue, disaster assessment and border patrol. Each UAV
+carries a camera and collects images of the area it covers. A perception model
+trained on all of these images is more accurate than one trained on any single
+UAV's data, but sending raw imagery to a ground station is costly in bandwidth and
+exposes sensitive data if a link is intercepted.
+
+Federated learning (FL) addresses this by moving training to the data. Each UAV
+trains a copy of the model on its own images and uploads only the resulting model
+update. A server (here, a ground base station) combines the updates into a new
+global model and sends it back. The raw images never leave the UAV, and an update is
+usually much smaller than the data it was computed from.
+
+A tactical swarm, however, breaks two assumptions that standard FL relies on.
+\begin{enumerate}
+\item \textbf{Links are unreliable.} Air-to-ground channels fade as the UAV moves,
+  hand over between base stations, and may be deliberately jammed. Parts of an update
+  are lost, and some updates miss the round deadline entirely.
+\item \textbf{Some clients may be hostile.} A captured or spoofed UAV can follow the
+  protocol while sending a poisoned update designed to damage the global model. Such
+  clients are called \emph{Byzantine}.
+\end{enumerate}
+Most Byzantine-robust aggregation rules assume that every update arrives intact, and
+most work on FL over imperfect channels assumes that every client is honest. A swarm
+needs both at once.
+
+\section{Problem Statement}
+Given a UAV swarm that trains a shared image classifier with hierarchical FL over
+lossy air-to-ground links, in which a minority of UAVs are Byzantine, design and
+evaluate an aggregation rule that (i) keeps the global model accurate and stable,
+(ii) does not penalize honest UAVs simply because their links are poor, and
+(iii) can be compared fairly against established rules under identical conditions.
+
+\section{Aim and Scope}
+The aim of this project is to determine \emph{which} kind of channel awareness
+actually helps a robust aggregator in a UAV swarm, and to quantify the effect with a
+controlled, reproducible experiment. Its scope in Phase~I is:
+\begin{itemize}
+\item a simulation of hierarchical FL with up to three base stations, UAV
+  association and handover;
+\item packet-level uplink losses from a synthetic jammed channel and from a measured
+  UAV received-power trace;
+\item four model-poisoning and data-poisoning attacks;
+\item six aggregation rules evaluated on the same data, models, attackers and channel
+  realizations.
+\end{itemize}
+Hardware flight tests, real radio transmission and attacks that forge link telemetry
+are outside the Phase~I scope.
+
+\section{Objectives}
+\begin{enumerate}
+\item Build an FL baseline for a UAV swarm on an aerial image dataset and measure its
+  accuracy under IID and non-IID data.
+\item Model a lossy uplink in which lost packets erase parts of an update, and add
+  Byzantine attackers.
+\item Design a reputation-based aggregator (CCRA) that uses a trusted reference
+  update, and give it two forms of channel awareness: erasure masking and
+  telemetry-weighted reputation.
+\item Separate the effect of each component with a prespecified, multi-seed ablation
+  study, and report the results with honest uncertainty estimates.
+\end{enumerate}
+
+\section{Contributions}
+\begin{itemize}
+\item An open, tested PyTorch framework for hierarchical UAV-swarm FL with
+  trace-driven packet erasures, handover and five attacks (43 automated tests).
+\item A preliminary study, then a controlled \NumRuns-run study whose analysis plan
+  and decision threshold were fixed before the runs.
+\item The finding that erasure masking improves accuracy under attack on weak links
+  by \MaskGain{} percentage points, while telemetry-weighted reputation lowers it,
+  together with an analysis of the reputation rule that explains why.
+\item A four-page manuscript in IEEE letter format that reports these results.
+\end{itemize}
+
+\section{Organization of the Report}
+Chapter~\ref{ch:lit} reviews federated learning, Byzantine-robust aggregation and FL
+over unreliable wireless links, and identifies the gap this project addresses.
+Chapter~\ref{ch:method} presents the theoretical study: the system and threat
+models, the aggregation rules and an analysis of the reputation update.
+Chapter~\ref{ch:results} presents the experimental study: implementation, protocol,
+the baseline, the preliminary study and the controlled study, and a discussion of
+what they show. Chapter~\ref{ch:conclusions} states the conclusions and the plan for
+Phase~II. The appendices, after the references, list the experimental settings and
+the steps needed to reproduce every result.

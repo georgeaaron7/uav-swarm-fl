@@ -1,0 +1,54 @@
+% 3.7: abstract, at most 500 words.
+\FrontChapter{Abstract}
+\thispagestyle{empty}
+
+Swarms of unmanned aerial vehicles (UAVs) can learn a shared perception model with
+federated learning (FL): each UAV trains on the images it collects and sends only a
+model update to a ground base station. In a tactical setting two problems arise
+together. Air-to-ground links lose packets because of fading, distance, handover and
+jamming, and some UAVs may be captured and made to send poisoned updates. Most
+Byzantine-robust aggregation rules assume that every update arrives intact, while
+most work on FL over unreliable links assumes that every client is honest. This
+project studies both problems in one system.
+
+We built a simulation framework in PyTorch for hierarchical FL over a UAV swarm. Ten
+UAVs with non-identically distributed aerial images are served by three base
+stations, which aggregate locally and synchronize every five rounds. Uplink packet
+losses come either from a synthetic channel with path loss, Rayleigh fading and a
+ground jammer, or from a measured UAV received-power trace (DeepSense~6G Scenario~23)
+replayed at a chosen signal-to-noise ratio. Three of the UAVs mount sign-flip,
+ALIE-style or inner-product-manipulation attacks. The framework includes FedAvg,
+coordinate-wise median, FLTrust, a cosine-weighted rule taken from prior UAV-FL
+work, and a reputation-based aggregator, CCRA, that we designed. CCRA compares each
+update with a reference update computed on a small trusted dataset, keeps a
+reputation for every UAV across rounds, and can use link information in two ways:
+by ignoring coordinates whose packets were lost (erasure masking), and by letting
+link telemetry slow down how fast a UAV regains trust.
+
+The work proceeded in three phases. A FedAvg baseline reached
+62.6\% (IID) and 60.2\% (non-IID) test accuracy. A preliminary single-seed study
+suggested that CCRA resisted a label-flipping attack better than the cosine-weighted
+baseline. To test which part of CCRA was responsible, we then ran a controlled,
+prespecified study of \NumRuns{} training runs on an A100 GPU: \NumSeeds{} paired
+seeds, four attack settings, three channel conditions and six aggregators. Diverged
+runs were scored at chance rather than discarded, and all uncertainty was estimated
+with a paired bootstrap over seeds.
+
+The study gave a clear and partly negative answer. On a weak (5\,dB) link under
+attack, erasure masking improved accuracy by \MaskGain{} percentage points (95\%
+confidence interval \ci{\MaskLo}{\MaskHi}). Adding link telemetry to the reputation
+update changed accuracy by \TelGain{} points (\ci{\TelLo}{\TelHi}) because it
+rejected \RejCcra\% of honest updates, against \RejMask\% without telemetry. We
+explain this with a short analysis of the reputation rule: when rewards are slowed
+but penalties are not, an honest UAV's reputation settles near its worst rounds. All
+reference-based aggregators avoided divergence, whereas FedAvg and the median
+diverged in \DivFedavg{} and \DivMedian{} of 120 runs.
+
+The result changes the direction of the project. The useful channel-aware component
+is erasure masking, and the reputation reward rule must be redesigned before link
+telemetry can help. The findings are written up as a four-page letter in IEEE format.
+The second phase will revise the reward rule, test it on fresh seeds and
+higher-mobility traces, and evaluate adaptive attackers.
+
+\textbf{Index Terms :} Federated learning, UAV swarm, Byzantine robustness,
+packet erasure, hierarchical aggregation, reputation.
