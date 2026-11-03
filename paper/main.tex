@@ -69,19 +69,26 @@ poor link should not be blamed for an update that \emph{looks} unusual because o
 the channel. Our earlier single-seed experiments suggested such a context-calibrated
 rule beat a cosine-weighted baseline taken from prior UAV-FL work~\cite{liao2023tee}.
 This letter tests that idea under controlled conditions and finds that it does not hold.
-Our contributions are:
-\begin{itemize}
-\item A hierarchical UAV-swarm FL simulator whose uplink packet erasures are driven by
+The main contributions of this letter are as follows:
+\begin{enumerate}
+\item We model hierarchical UAV-swarm FL whose uplink packet erasures are driven by
   a measured DeepSense~6G UAV received-power trace~\cite{alkhateeb2023deepsense}, with
   BS association, handover and model-poisoning attackers.
-\item A prespecified, paired \NumRuns-run ablation that separates erasure masking from
-  telemetry-weighted reputation inside one trusted-reference aggregator.
-\item Evidence that erasure masking is the useful channel-aware component, while
-  telemetry-weighted reputation reduces accuracy as the link weakens, together with
-  an analysis of the reputation rule that explains why.
-\end{itemize}
+\item We propose an erasure-aware reputation aggregator and isolate its two
+  channel-aware mechanisms, erasure masking and telemetry-weighted reputation, in a
+  prespecified, paired \NumRuns-run simulation study.
+\item We derive the steady-state reputation of the update rule and show that it explains
+  why telemetry lowers accuracy as the link weakens, while erasure masking raises it.
+\end{enumerate}
+
+The rest of this letter is arranged as follows. Section~\ref{sec:model} describes the
+system model and Section~\ref{sec:method} the proposed aggregation.
+Section~\ref{sec:analysis} analyses its reputation update at steady state.
+Section~\ref{sec:results} presents simulation results, and Section~\ref{sec:conclusion}
+concludes the letter.
 
 \section{System Model}
+\label{sec:model}
 \begin{figure}[t]
 \centering
 \begin{tikzpicture}[
@@ -140,7 +147,8 @@ update~\cite{xie2019ipm} ($-\epsilon\boldsymbol\mu$). The ALIE and IPM attackers
 honest updates in their cell, a deliberately strong assumption. Telemetry is measured
 by the BS and is assumed authentic.
 
-\section{Erasure-Aware Reputation Aggregation}
+\section{Proposed Erasure-Aware Reputation Aggregation}
+\label{sec:method}
 Let $\mathcal{S}(\mathbf{x};\mathbf{m})$ restrict $\mathbf{x}$ to the coordinates where
 $\mathbf{m}=1$. Each BS runs the following steps (index $t$ dropped).
 
@@ -180,39 +188,76 @@ channel-unaware server sees them. (The SINR calibration of $c_k$ in our code is 
 here because the study has no residual parameter noise, so the full-versus-mask-only
 contrast isolates $e_k$.)
 
-\emph{Why telemetry can hurt.} For a fixed $e_k=e$ and i.i.d.\ scores $b$, the expected
-reputation step in~\eqref{eq:rep} vanishes where
+\section{Steady-State Analysis of the Reputation}
+\label{sec:analysis}
+Consider one UAV whose evidence is constant, $e_k=e\in(0,1]$, and whose behavior
+scores $b\in[0,1]$ are i.i.d.\ with $\mathbb{E}[b]>0$. By~\eqref{eq:rep}, the
+expected reputation step from level $T$ is $(1-\beta)\,g_e(T)$ with
 \begin{equation}
-  e\,\mathbb{E}\bigl[(b-T)^+\bigr]=\mathbb{E}\bigl[(T-b)^+\bigr].
-  \label{eq:fixed}
+  g_e(T)=e\,\mathbb{E}\bigl[(b-T)^+\bigr]-\mathbb{E}\bigl[(T-b)^+\bigr].
+  \label{eq:drift}
 \end{equation}
-For $e=1$ this gives $T^\star=\mathbb{E}[b]$; as $e\to0$, $T^\star$ falls toward the
-lower end of the support of $b$. Honest UAVs with non-IID data have noisy $b$, so
-on a weak link their reputation settles near their \emph{worst} rounds and more often
-falls below the gate $\tau$. Attackers are already pushed to $b\approx0$ at full rate,
-so they gain little extra suppression.
 
-\section{Experimental Setup}
-We use $K=10$ UAVs, $B=3$ BSs, $E=5$, $f=3$ attackers (chosen per seed and kept fixed
-across methods), a 156k-parameter CNN with GroupNorm, aerial-transformed CIFAR-10
-split by Dirichlet($0.5$)~\cite{hsu2019noniid}, one local epoch, 100 rounds,
-$|\mathcal{D}_0|=500$, $\beta=0.5$, $\tau=0.3$, $L=1024$, $a=1$ and
-$\gamma_{\mathrm{th}}=3$\,dB. Attacks use $\lambda=5$, $z=1.5$ and $\epsilon=0.5$.
-The channel conditions are an ideal channel and the same measured trace replayed at
-$\bar\gamma=15$\,dB (mean PDR \PdrTrace\%) and at $\bar\gamma=5$\,dB (mean PDR \PdrStress\%).
-The baselines are FedAvg~\cite{mcmahan2017fedavg}, coordinate-wise
-median~\cite{yin2018median} and FLTrust~\cite{cao2021fltrust}, the last given the
-same root set and a comparable local-step budget.
+\emph{Proposition 1:} $g_e$ has a unique root $T^\star(e)\in(0,1)$, the steady state of
+the mean reputation dynamics. $T^\star(1)=\mathbb{E}[b]$, $T^\star(e)$ is increasing in
+$e$, and $T^\star(e)\to\operatorname{ess\,inf} b$ as $e\to0$.
 
-The full factorial design has six aggregators, four attack settings (including clean),
-three channels and \NumSeeds{} paired seeds, for \NumRuns{} runs. A run that diverges
-numerically is scored at chance (10\%), never discarded. The primary contrast,
-CCRA minus mask-only at 5\,dB minus the same at 15\,dB, and its 1\pp{} decision
-threshold were fixed before the runs. Intervals are 95\% percentile bootstraps over
-seeds (10{,}000 resamples), with the seed as the unit of replication. All other
-contrasts are exploratory and not adjusted for multiple comparisons.
+\emph{Proof:} $g_e$ is continuous and strictly decreasing in $T$, with
+$g_e(0)=e\,\mathbb{E}[b]>0$ and $g_e(1)=-\mathbb{E}[1-b]<0$, so the root exists and is
+unique. For $e=1$, $g_1(T)=\mathbb{E}[b]-T$. Since $\partial g_e/\partial e=
+\mathbb{E}[(b-T)^+]\ge0$ while $g_e$ decreases in $T$, the root rises with $e$. As
+$e\to0$, $g_e(T)\to-\mathbb{E}[(T-b)^+]$, which is negative for every
+$T>\operatorname{ess\,inf}b$. \hfill$\blacksquare$
 
-\section{Results}
+The asymmetry intended to stop packet-dropping attackers therefore has a side
+effect. An honest UAV with non-IID data has noisy scores, and on a weak link (small
+$e$) its reputation settles near its \emph{worst} rounds instead of its average,
+so it falls below the gate $\tau$ more often. An attacker's scores are already near
+zero, so a smaller $e$ adds little suppression. Section~\ref{sec:results} tests this
+prediction.
+
+\section{Simulation Results}
+\label{sec:results}
+
+\subsection{Simulation Setup}
+Table~\ref{tab:params} lists the values assumed for the parameters. Attackers are
+chosen per seed and kept fixed across methods. The channel is either ideal or the
+same measured trace replayed at $\bar\gamma=15$\,dB (mean PDR \PdrTrace\%) and at
+$\bar\gamma=5$\,dB (mean PDR \PdrStress\%). The baselines are
+FedAvg~\cite{mcmahan2017fedavg}, coordinate-wise median~\cite{yin2018median} and
+FLTrust~\cite{cao2021fltrust}, the last given the same root set and a comparable
+local-step budget.
+
+\begin{table}[t]
+\centering
+\caption{Values Assumed for the Parameters}
+\label{tab:params}
+\footnotesize
+\begin{tabular}{@{}p{0.5\columnwidth}p{0.45\columnwidth}@{}}
+\toprule
+Parameter & Value \\
+\midrule
+UAVs $K$; BSs $B$; attackers $f$; sync $E$ & 10; 3; 3; 5 \\
+Rounds; local training & 100; one SGD epoch \\
+Model & CNN, 156k parameters \\
+Data & aerial CIFAR-10, Dirichlet($0.5$)~\cite{hsu2019noniid} \\
+Root set $|\mathcal{D}_0|$; $\beta$; $\tau$ & 500 images; 0.5; 0.3 \\
+Packet size $L$; $a$; $\gamma_{\mathrm{th}}$ & 1024; 1; 3\,dB \\
+Reference SNR $\bar\gamma$ & ideal, 15\,dB, 5\,dB \\
+Sign flip $\lambda$; ALIE $z$; IPM $\epsilon$ & 5; 1.5; 0.5 \\
+Seeds; runs & \NumSeeds; \NumRuns{} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The full factorial design crosses six aggregators, four attack settings (including
+clean), three channels and \NumSeeds{} paired seeds. A run that diverges numerically
+is scored at chance (10\%), never discarded. The primary contrast, CCRA minus
+mask-only at 5\,dB minus the same at 15\,dB, and its 1\pp{} decision threshold were
+fixed before the runs. Intervals are 95\% percentile bootstraps over seeds (10{,}000
+resamples). All other contrasts are exploratory and not adjusted for multiple
+comparisons.
+
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{figures/accuracy_vs_channel.pdf}
@@ -228,7 +273,8 @@ contrasts are exploratory and not adjusted for multiple comparisons.
 \input{generated/table_outcomes}
 \end{table}
 
-\emph{Robustness and stability.} Fig.~\ref{fig:acc} and Table~\ref{tab:outcomes} show
+\subsection{Robustness and Stability}
+Fig.~\ref{fig:acc} and Table~\ref{tab:outcomes} show
 that FedAvg and the coordinate-wise median diverged in \DivFedavg{} and \DivMedian{} of
 their 120 runs respectively, whereas no root-referenced method (FLTrust and all three
 CCRA variants) diverged. The median is likely fragile here because each cell holds only a few UAVs, so a
@@ -246,7 +292,8 @@ prespecified $\pm1$\pp{} region of practical equivalence.}
 \label{fig:ablation}
 \end{figure}
 
-\emph{Which channel awareness helps.} Fig.~\ref{fig:ablation} separates the two
+\subsection{Which Channel Awareness Helps}
+Fig.~\ref{fig:ablation} separates the two
 mechanisms. On the ideal channel the masks are all ones, so mask-only and no-context
 coincide. As delivery degrades, erasure masking becomes valuable: at 5\,dB it adds
 \MaskGain\pp{} (\ci{\MaskLo}{\MaskHi}). Telemetry does the opposite. At 5\,dB, full
@@ -262,20 +309,24 @@ seeds (percent of received updates).}
 \label{fig:gate}
 \end{figure}
 
-\emph{Mechanism.} Fig.~\ref{fig:gate} matches~\eqref{eq:fixed}. With telemetry, the
+\subsection{Validation of the Steady-State Analysis}
+Fig.~\ref{fig:gate} matches Proposition~1. With telemetry, the
 gate rejects \RejCcra\% of honest updates versus \RejMask\% for mask-only, and admits
 only slightly fewer attacker updates (\AccptCcra\% versus \AccptMask\%). The rule
 trades a small gain in attacker filtering for a large loss of honest data, and the
-loss grows as the link weakens, where honest data is already scarce. FLTrust, which has no memory,
-rejects only \RejFltrust\% of honest updates, which explains its resilience at 5\,dB.
-These rates are descriptive and support, but do not prove, the causal account.
+loss grows as the link weakens, where honest data is already scarce. FLTrust, which
+has no memory, rejects only \RejFltrust\% of honest updates, consistent with its
+resilience at 5\,dB. These rates are descriptive and support, but do not prove, the
+causal account.
 
-\emph{Limitations.} The trace comes from one measured BS with virtual neighbors, the
+\subsection{Limitations}
+The trace comes from one measured BS with virtual neighbors, the
 SNR anchors are assumptions rather than calibrated values, the run includes few
 handovers, and we use one dataset and model. Telemetry spoofing and adaptive attacks
 on the reputation itself~\cite{liu2026evade} are not tested.
 
 \section{Conclusion}
+\label{sec:conclusion}
 In a hierarchical UAV-swarm FL system with measured-trace packet erasures, the
 channel-aware component that pays off is simple: compare and average each update
 only on the coordinates that actually arrived. Feeding link telemetry into an

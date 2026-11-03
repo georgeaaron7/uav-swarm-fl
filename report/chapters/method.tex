@@ -221,9 +221,23 @@ so the reputation settles where
   e\,\mathbb{E}\bigl[(b-T^\star)^+\bigr] = \mathbb{E}\bigl[(T^\star-b)^+\bigr].
   \label{eq:fixed-point}
 \end{equation}
-For $e=1$ the two sides balance at $T^\star=\mathbb{E}[b]$, the mean score. As $e$
-decreases, the left side shrinks, and $T^\star$ must move down until few scores lie
-below it; in the limit $e\to0$ it approaches the lowest score the UAV ever receives.
+This steady state is characterized as follows.
+
+\noindent\textbf{Proposition 3.1.} Let $b\in[0,1]$ be i.i.d.\ with $\mathbb{E}[b]>0$ and let
+$g_e(T)=e\,\mathbb{E}[(b-T)^+]-\mathbb{E}[(T-b)^+]$. For every $e\in(0,1]$, $g_e$ has a
+unique root $T^\star(e)\in(0,1)$. Moreover $T^\star(1)=\mathbb{E}[b]$, $T^\star(e)$ is
+increasing in $e$, and $T^\star(e)\to\operatorname{ess\,inf} b$ as $e\to0$.
+
+\noindent\textit{Proof.} $g_e$ is continuous and strictly decreasing in $T$, with
+$g_e(0)=e\,\mathbb{E}[b]>0$ and $g_e(1)=-\mathbb{E}[1-b]<0$, so it has exactly one root
+in $(0,1)$. For $e=1$, $g_1(T)=\mathbb{E}[b]-T$. Because
+$\partial g_e/\partial e=\mathbb{E}[(b-T)^+]\ge0$ while $g_e$ decreases in $T$, the root
+rises with $e$. Finally, as $e\to0$, $g_e(T)\to-\mathbb{E}[(T-b)^+]$, which is negative
+for every $T>\operatorname{ess\,inf}b$, while $g_e(T)>0$ for every
+$T<\operatorname{ess\,inf}b$. \hfill$\blacksquare$
+
+In words: with full evidence the reputation settles at the mean score; as the
+evidence falls, it moves down towards the lowest score the UAV ever receives.
 An honest UAV with skewed data has noisy scores, so on a weak link its reputation
 tracks its worst rounds and falls below the gate $\tau$ more often. An attacker's
 scores are already near zero, so slowing its rewards adds little. Section~\ref{sec:mechanism}
