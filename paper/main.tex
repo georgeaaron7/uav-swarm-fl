@@ -54,14 +54,16 @@ Federated learning, UAV swarm, Byzantine robustness, packet erasure, hierarchica
 \section{Introduction}
 \IEEEPARstart{U}{AV} swarms increasingly train perception models collaboratively,
 and FL~\cite{mcmahan2017fedavg} keeps each UAV's imagery on board while exchanging
-only model updates~\cite{xiao2021uavswarm}. Two impairments act on those updates at
+only model updates; it has been applied to on-board UAV-swarm missions~\cite{xiao2021uavswarm}.
+Two impairments act on those updates at
 once. First, air-to-ground links fade, hand over between base stations (BSs) and
 miss deadlines, so updates arrive with missing packets~\cite{shirvanimoghaddam2022erroneous}.
 Second, captured or spoofed UAVs can send poisoned updates. Robust rules such as
 Krum~\cite{blanchard2017krum}, coordinate-wise median~\cite{yin2018median} and
 FLTrust~\cite{cao2021fltrust} address the second problem but treat every received
-vector as complete; channel-aware FL and anti-jamming designs~\cite{barkatsa2024jamming}
-address the first but do not assume adversarial clients. Reputation-based defenses are
+vector as complete; channel-aware and anti-jamming designs address the first, but model
+malicious clients only as jammers~\cite{barkatsa2024jamming}, not as senders of poisoned
+updates. Reputation-based defenses are
 attractive for persistent swarm members, yet they can themselves be gamed~\cite{liu2026evade}.
 
 A natural idea is to let the BS's own link telemetry modulate trust: a UAV on a

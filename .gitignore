@@ -44,3 +44,6 @@ results/context_final_gpu/
 /report/**/*.synctex.gz
 /paper_overleaf.zip
 /report_overleaf.zip
+
+# Downloaded IEEE PDFs (copyrighted; keep out of the public repo)
+/base_papers/
