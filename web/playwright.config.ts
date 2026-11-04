@@ -1,2 +1,26 @@
-import {defineConfig,devices} from '@playwright/test'
-export default defineConfig({testDir:'./tests',webServer:process.env.SWARM_TEST_URL?undefined:{command:(process.env.SWARM_TEST_PYTHON||(process.platform==='win32'?'../.venv/Scripts/python.exe':'../.venv/bin/python'))+' ../tests/browser_server.py',url:'http://127.0.0.1:18787/health',reuseExistingServer:true},use:{baseURL:process.env.SWARM_TEST_URL||'http://127.0.0.1:18787',trace:'retain-on-failure'},projects:[{name:'desktop',use:{...devices['Desktop Chrome']}},{name:'mobile',use:{...devices['iPhone 13'],defaultBrowserType:'chromium'}}]})
+import { defineConfig, devices } from "@playwright/test";
+export default defineConfig({
+  testDir: "./tests",
+  webServer: process.env.SWARM_TEST_URL
+    ? undefined
+    : {
+        command:
+          (process.env.SWARM_TEST_PYTHON ||
+            (process.platform === "win32"
+              ? "../.venv/Scripts/python.exe"
+              : "../.venv/bin/python")) + " ../tests/browser_server.py",
+        url: "http://127.0.0.1:18787/health",
+        reuseExistingServer: true,
+      },
+  use: {
+    baseURL: process.env.SWARM_TEST_URL || "http://127.0.0.1:18787",
+    trace: "retain-on-failure",
+  },
+  projects: [
+    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
+    {
+      name: "mobile",
+      use: { ...devices["iPhone 13"], defaultBrowserType: "chromium" },
+    },
+  ],
+});
