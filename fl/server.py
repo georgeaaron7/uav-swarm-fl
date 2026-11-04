@@ -102,7 +102,8 @@ class FederatedServer:
         attempts = self.delivery_attempts[client_id]
         return 1.0 if attempts == 0 else float(self.delivery_sum[client_id] / attempts)
 
-    def _aggregate(self, updates: list[dict], root: torch.Tensor | None):
+    def _aggregate(self, updates: list[dict], root: torch.Tensor | None,
+                   base: torch.Tensor | None = None, erased: list[dict] = ()):
         # Krum is undefined for fewer than three updates. Sparse cells use an
         # explicit FedAvg fallback and record it in the cell diagnostics.
         if self.cfg.aggregator in {"krum", "multi_krum"} and len(updates) < 3:
@@ -111,6 +112,8 @@ class FederatedServer:
             return delta, info
         if getattr(self.aggregator, "needs_root", False):
             return self.aggregator.aggregate(updates, root=root)
+        if getattr(self.aggregator, "needs_base", False):
+            return self.aggregator.aggregate(updates, base=base, erased=erased)
         return self.aggregator.aggregate(updates)
 
     def _fltrust_root_steps(self, updates: list[dict]) -> int:
@@ -284,7 +287,10 @@ class FederatedServer:
                         num_steps=root_optimizer_steps,
                     )
                     root = flatten(root_update.state_dict) - edge_vector
-                aggregate, info = self._aggregate(updates, root)
+                # Selected UAVs whose whole update was erased (only the base
+                # paper's reuse rule looks at them).
+                erased = [r for r in pending[bs] if not r["mask"].any()]
+                aggregate, info = self._aggregate(updates, root, base=edge_vector, erased=erased)
                 if not torch.isfinite(aggregate).all():
                     raise NumericalDivergenceError(rnd, f"base station {bs} aggregation")
                 candidate = edge_vector + aggregate

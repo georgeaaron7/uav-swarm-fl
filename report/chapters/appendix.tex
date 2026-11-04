@@ -17,7 +17,7 @@ UAVs $K$, base stations $B$ & 10, 3 \\
 Byzantine UAVs $f$ & 3, fixed per seed across all methods \\
 Rounds; synchronization period $E$ & 100; 5 \\
 Local training & 1 epoch, SGD, learning rate 0.01, momentum 0.9, batch 64, weight decay $5\times10^{-4}$ \\
-Model & TacticalEdgeCNN, about 156k parameters, group normalization \\
+Model & TacticalEdgeCNN, 156{,}074 trainable parameters, no normalization layers \\
 Data & Aerial-transformed CIFAR-10, Dirichlet $\alpha=0.5$, 49{,}500 training images to UAVs \\
 Root set $\mathcal{D}_0$ & 500 images (50 per class), disjoint from all UAV data \\
 Reputation & $\beta=0.5$, gate $\tau=0.3$, initial trust 1 \\
@@ -27,7 +27,8 @@ Packet errors & logistic, slope $a=1$, threshold $\gamma_{\mathrm{th}}=3$\,dB \\
 Round deadline; bandwidth & 2\,s; 20\,MHz \\
 Handover & 3\,dB hysteresis, 2-round time to trigger \\
 Trace & DeepSense~6G Scenario~23, stride 5 samples per round, segments $\ge 200$ samples \\
-Reference SNR $\bar\gamma$ & 15\,dB (good link), 5\,dB (weak link) \\
+Reference SNR $\bar\gamma$ & assumed anchors: 15\,dB (good link), 5\,dB (weak link) \\
+Jammer; parameter noise & none; none \\
 Attacks & sign flip $\lambda=5$; ALIE-style $z=1.5$; IPM $\epsilon=0.5$ \\
 Seeds & 41--50 \\
 \bottomrule
@@ -40,8 +41,12 @@ Seeds & 41--50 \\
 \setcounter{table}{0}\renewcommand{\thetable}{B.\arabic{table}}
 \label{app:repro}
 
-All code, the run-level results and this report are in the repository
-\url{https://github.com/sasank-555/uav-swarm-fl}.
+All code, the run-level summary results and this report are in the repository
+\url{https://github.com/sasank-555/uav-swarm-fl}. The raw DeepSense~6G data are
+access-controlled and must be obtained from the dataset provider; per-run model
+checkpoints are kept locally and are not distributed. The training-source commit
+pinned for the controlled study is recorded in
+\texttt{results/CONTEXT\_STUDY\_FINAL.md}.
 
 \begin{table}[ht]
 \centering
@@ -52,7 +57,7 @@ All code, the run-level results and this report are in the repository
 Path & Contents \\
 \midrule
 \texttt{fl/} & Simulator: data, model, client, channel, topology, attacks, aggregators, server \\
-\texttt{tests/} & 43 automated tests \\
+\texttt{tests/} & 46 automated tests \\
 \texttt{run\_context\_study.py} & Plans and runs the \NumRuns-run controlled study \\
 \texttt{analyze\_context\_study.py} & Prespecified analysis with paired bootstrap \\
 \texttt{results/context\_study/} & Run-level CSV and analysis of the controlled study \\
@@ -66,11 +71,18 @@ Path & Contents \\
 The main steps are:
 \begin{enumerate}
 \item Install the dependencies: \texttt{pip install -r requirements.txt}.
-\item Prepare the data: \texttt{python prepare\_data.py}, and convert the DeepSense
-  Scenario~23 download with \texttt{scripts/prepare\_deepsense23.py}.
-\item Run the study (about 720 GPU runs):
+\item Prepare CIFAR-10: \texttt{python prepare\_data.py}.
+\item Convert the DeepSense Scenario~23 download:\\
+  \texttt{python scripts/prepare\_deepsense23.py /path/to/Scenario23}\\
+  \texttt{\ \ --out data/channel\_traces/deepsense23.npz}.
+\item Run the study (720 GPU runs):
   \texttt{python run\_context\_study.py --profile final --device cuda --parallel 4}.
 \item Analyse it: \texttt{python analyze\_context\_study.py results/context\_final}.
 \item Rebuild all figures and numbers: \texttt{python scripts/make\_paper\_figures.py}.
+\item Build the documents: in \texttt{paper/} and in \texttt{report/}, run
+  \texttt{tectonic -X compile main.tex}, or pdfLaTeX with BibTeX.
 \end{enumerate}
-Step~5 alone is enough to regenerate this report's figures from the committed results.
+Steps~6 and~7 alone regenerate the figures and documents from the committed results.
+The base-paper comparison uses the same runner with the options
+\texttt{--aggs bp\_fresh bp\_reuse} and
+\texttt{--out-dir results/base\_paper\_comparison}.

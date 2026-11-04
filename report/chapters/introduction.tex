@@ -5,16 +5,17 @@
 \section{Background}
 Small unmanned aerial vehicles (UAVs) are now used in groups, or swarms, for
 surveillance, search and rescue, disaster assessment and border patrol. Each UAV
-carries a camera and collects images of the area it covers. A perception model
-trained on all of these images is more accurate than one trained on any single
-UAV's data, but sending raw imagery to a ground station is costly in bandwidth and
-exposes sensitive data if a link is intercepted.
+carries a camera and collects images of the area it covers. Training across the
+datasets of several UAVs may improve generalization compared with training on a
+single UAV's data \citep{mcmahan2017fedavg}, but sending raw imagery to a ground
+station is costly in bandwidth and exposes sensitive data if a link is intercepted.
 
 Federated learning (FL) addresses this by moving training to the data. Each UAV
 trains a copy of the model on its own images and uploads only the resulting model
 update. A server (here, a ground base station) combines the updates into a new
-global model and sends it back. The raw images never leave the UAV, and an update is
-usually much smaller than the data it was computed from.
+global model and sends it back. The raw images remain on the UAV, and an update is
+usually much smaller than the data it was computed from. Updates can still leak some
+information about the data, so FL alone is not a privacy guarantee.
 
 A tactical swarm, however, breaks two assumptions that standard FL relies on.
 \begin{enumerate}
@@ -45,16 +46,18 @@ controlled, reproducible experiment. Its scope in Phase~I is:
   association and handover;
 \item packet-level uplink losses from a synthetic jammed channel and from a measured
   UAV received-power trace;
-\item four model-poisoning and data-poisoning attacks;
+\item five supported attacks (label flip, sign flip, Gaussian noise, ALIE and IPM),
+  of which the preliminary study uses label flip and the controlled study the three
+  model-poisoning attacks sign flip, ALIE and IPM;
 \item six aggregation rules evaluated on the same data, models, attackers and channel
-  realizations.
+  realizations, and the base paper's two erasure rules for a separate comparison.
 \end{itemize}
 Hardware flight tests, real radio transmission and attacks that forge link telemetry
 are outside the Phase~I scope.
 
 \section{Objectives}
 \begin{enumerate}
-\item Build an FL baseline for a UAV swarm on an aerial image dataset and measure its
+\item Build an FL baseline for a UAV swarm on aerial-transformed CIFAR-10 and measure its
   accuracy under IID and non-IID data.
 \item Model a lossy uplink in which lost packets erase parts of an update, and add
   Byzantine attackers.
@@ -68,12 +71,15 @@ are outside the Phase~I scope.
 \section{Contributions}
 \begin{itemize}
 \item An open, tested PyTorch framework for hierarchical UAV-swarm FL with
-  trace-driven packet erasures, handover and five attacks (43 automated tests).
+  trace-driven packet erasures, handover and five attacks (46 automated tests).
 \item A preliminary study, then a controlled \NumRuns-run study whose analysis plan
   and decision threshold were fixed before the runs.
 \item The finding that erasure masking improves accuracy under attack on weak links
   by \MaskGain{} percentage points, while telemetry-weighted reputation lowers it,
-  together with an analysis of the reputation rule that explains why.
+  together with an analysis of the reputation rule that suggests a mechanism
+  consistent with this result.
+\item Implementations of the base paper's two erasure rules, ready for a direct
+  comparison on the same seeds, attackers and channels.
 \item A four-page manuscript in IEEE letter format that reports these results.
 \end{itemize}
 

@@ -19,6 +19,9 @@ from fl.config import FLConfig
 
 REPO = Path(__file__).resolve().parent
 METHODS = ["fedavg", "median", "fltrust", "ccra_noctx", "ccra_maskonly", "ccra"]
+# Base paper's erasure rules; run as a separate comparison, never folded into
+# the prespecified six-method study above.
+BASE_PAPER_METHODS = ["bp_fresh", "bp_reuse"]
 CONDITIONS = ["hfl_ideal", "hfl_trace", "hfl_trace_stress"]
 ATTACKS = ["clean", "sign_flip", "alie", "ipm"]
 
@@ -160,7 +163,7 @@ def main(argv=None):
     parser.add_argument("--out-dir", type=Path)
     parser.add_argument("--seeds", nargs="+", type=int)
     parser.add_argument("--rounds", type=int)
-    parser.add_argument("--aggs", nargs="+", choices=METHODS, default=METHODS)
+    parser.add_argument("--aggs", nargs="+", choices=METHODS + BASE_PAPER_METHODS, default=METHODS)
     parser.add_argument("--attacks", nargs="+", choices=ATTACKS, default=ATTACKS)
     parser.add_argument("--conditions", nargs="+", choices=CONDITIONS, default=CONDITIONS)
     parser.add_argument("--device", default="cpu", choices=["cpu", "cuda", "mps"])
@@ -194,16 +197,23 @@ def main(argv=None):
         data_dir = args.data_dir / "context_pilot"
         pilot_data(source_data, data_dir)
     jobs = build_jobs(args, data_dir)
+    if set(args.aggs) & set(BASE_PAPER_METHODS) and set(args.aggs) & set(METHODS):
+        parser.error("run base-paper methods as their own study (--aggs bp_fresh bp_reuse)")
+    base_paper = bool(set(args.aggs) & set(BASE_PAPER_METHODS))
     manifest = {
-        "schema_version": 1, "study": "context_ablation", "profile": args.profile,
+        "schema_version": 1, "study": "base_paper_comparison" if base_paper else "context_ablation",
+        "profile": args.profile,
         "rounds": args.rounds, "seeds": args.seeds,
         "source_sha256": source_digest(),
         "dataset_sha256": digest(data_dir / "cifar10.npz"),
         "trace_sha256": digest(args.trace_path) if any(c != "hfl_ideal" for c in args.conditions) else None,
         "runtime": {"python": platform.python_version(), "torch": torch.__version__, "numpy": np.__version__},
-        "hypothesis": "CCRA minus mask-only accuracy gain increases under channel stress",
+        "hypothesis": (
+            "descriptive: base-paper erasure rules on the same seeds, attackers and channels"
+            if base_paper else "CCRA minus mask-only accuracy gain increases under channel stress"
+        ),
         "meaningful_effect_pp": args.meaningful_effect_pp,
-        "primary_estimand": (
+        "primary_estimand": None if base_paper else (
             "mean over seeds of mean over attacked scenarios of "
             "[(CCRA - mask-only) at 5 dB - (CCRA - mask-only) at 15 dB]"
         ),

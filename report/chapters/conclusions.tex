@@ -6,7 +6,10 @@ This project built a simulation framework for federated learning over a UAV swar
 whose updates travel over lossy air-to-ground links and in which some UAVs are
 Byzantine. The framework supports hierarchical aggregation at three base stations,
 handover, packet erasures from a synthetic jammed channel or a measured UAV trace,
-five attacks and eight aggregation rules, and is covered by automated tests. A FedAvg
+five attacks and twelve selectable aggregation rules (FedAvg, the CosAvg-style
+baseline, median, trimmed mean, Krum, Multi-Krum, FLTrust, three CCRA variants and the
+base paper's two erasure rules), six of which were evaluated in the controlled study,
+and is covered by automated tests. A FedAvg
 baseline was established first. A reputation-based aggregator, CCRA, was then
 designed with two forms of channel awareness, erasure masking and telemetry-weighted
 reputation. After a promising but inconclusive single-seed study, a prespecified,
@@ -18,27 +21,31 @@ effect. The results have been written up as a manuscript in IEEE letter format.
 \item Non-IID data reduced FedAvg accuracy from 62.6\% to 60.2\% in the baseline,
   and a 30\% label-flip attack reduced it by about ten points in the preliminary
   study.
-\item Aggregators that judge updates against a trusted reference update never
-  diverged in \NumRuns{} runs, whereas FedAvg and the coordinate-wise median
-  diverged in \DivFedavg{} and \DivMedian{} of 120 runs each.
+\item None of the four aggregators that judge updates against a trusted reference
+  update diverged in its 120 runs (480 runs combined), whereas FedAvg and the
+  coordinate-wise median diverged in \DivFedavg{} and \DivMedian{} of 120 runs each.
 \item Ignoring lost coordinates instead of treating them as zeros (erasure masking)
   improved accuracy under attack on a 5\,dB link by \MaskGain{} percentage points
   (95\% CI \ci{\MaskLo}{\MaskHi}).
 \item Using link telemetry to slow reputation rewards had a meaningful negative
   effect: the prespecified primary estimate was $\PrimGain$ points
-  (\ci{\PrimLo}{\PrimHi}), and the gate rejected \RejCcra\% of honest updates
-  instead of \RejMask\%.
-\item The likely cause is structural. With slowed rewards but full-rate penalties,
-  the fixed-point condition~\eqref{eq:fixed-point} shows that an honest UAV's
-  reputation settles towards its worst rounds rather than its average behaviour, and
-  the measured gate decisions match this prediction.
-\item On weak links, the best variant is statistically indistinguishable from
-  FLTrust (an exploratory comparison), so its advantage over FLTrust appears only on
-  ideal and moderate channels.
+  (\ci{\PrimLo}{\PrimHi}), accompanied by a rise in honest-update rejection from
+  \RejMask\% to \RejCcra\%.
+\item A plausible cause is structural. With slowed rewards but full-rate penalties,
+  the constant-evidence drift analysis~\eqref{eq:fixed-point} shows that weaker
+  evidence lowers the equilibrium of an honest UAV's reputation from its mean score
+  toward the lower tail of its scores, and the measured gate decisions are
+  consistent with this mechanism.
+\item On weak links, the exploratory comparison of the best variant with FLTrust was
+  inconclusive; a clear advantage over FLTrust appeared only at 15\,dB.
 \end{enumerate}
 
 \section{Scope for Future Work (Phase II)}
 \begin{enumerate}
+\item \textbf{Complete the base-paper comparison.} Run the base paper's fresh-only and
+  reuse-old rules on the same seeds, attackers and channels (240 runs), and report
+  them against mask-only and full CCRA. Its reuse-old idea also suggests a variant
+  that fills lost packets from a trusted UAV's previous update instead of masking them.
 \item \textbf{Redesign the reward rule} so that weak links do not bias reputation
   downwards, for example by making the update symmetric in the evidence, or by
   normalizing each UAV's score against its own recent history, and freeze the rule

@@ -17,10 +17,18 @@ a four-page IEEE letter: [`paper/main.pdf`](paper/main.pdf) ([source and build n
 - **Packet-erasure masking helps.** Comparing and averaging each update only on the
   coordinates that arrived adds +4.2 pp under attack on a 5 dB link (95% CI
   [+2.2, +5.9]).
-- **Link telemetry in the reputation update hurts.** Full CCRA is −3.5 pp versus
-  mask-only at 5 dB (CI [−5.1, −2.1]) because it rejects 41% of honest updates.
+- **Link telemetry in the reputation update hurts.** The prespecified stress
+  interaction is −2.7 pp (CI [−3.9, −1.5]). Full CCRA is −3.5 pp versus mask-only at
+  5 dB (CI [−5.1, −2.1]), accompanied by a rise in honest-update rejection from 14%
+  to 41%.
 - **Root-referenced methods are stable.** FedAvg and coordinate median diverged in 41
-  and 26 of 120 runs; FLTrust and all CCRA variants never diverged.
+  and 26 of 120 runs; none of FLTrust and the three CCRA variants diverged in its 120
+  runs.
+- **Base paper.** The IEEE base paper is Shirvanimoghaddam et al., "Federated Learning
+  With Erroneous Communication Links", IEEE Commun. Lett. 26(6), 2022. Its two server
+  rules (fresh-only and reuse-old) are implemented as `bp_fresh` and `bp_reuse`; the
+  240-run comparison on the same seeds and channels is pending (see
+  [Base-paper comparison](#base-paper-comparison)).
 
 | Accuracy under attack vs channel | Ablation contrasts | Reputation-gate decisions at 5 dB |
 |---|---|---|
@@ -29,6 +37,29 @@ a four-page IEEE letter: [`paper/main.pdf`](paper/main.pdf) ([source and build n
 Every figure, table and number in the paper is regenerated from the committed CSV by
 `python scripts/make_paper_figures.py`, which also copies them into the Phase I
 B.Tech report: [`report/main.pdf`](report/main.pdf) ([source and layout notes](report/README.md)).
+
+## Base-paper comparison
+
+The guide asked for a comparison against a base paper from an IEEE letters journal.
+The base paper is M. Shirvanimoghaddam, A. Salari, Y. Gao and A. Guha, "Federated
+Learning With Erroneous Communication Links," *IEEE Commun. Lett.*, 26(6),
+1293–1297, 2022, doi:10.1109/LCOMM.2022.3167094. It models each upload as erased or
+received and compares two server rules, both implemented in `fl/aggregators.py`:
+
+| Name | Base paper | Our packet-level implementation |
+|---|---|---|
+| `bp_fresh` | Eq. (4): average only the fresh updates received | Average each coordinate over the UAVs that delivered it, weighted by sample count |
+| `bp_reuse` | Eq. (5): reuse a device's last received parameters when its update is missing | Fill each lost coordinate, and every coordinate of a fully erased upload, with the last parameter value received from that UAV |
+
+Neither rule defends against attackers, because the base paper assumes none. They run
+as a separate study on the same seeds, attackers, channels and attacks as the
+720-run study (2 × 4 × 3 × 10 = 240 runs). The trace conditions need
+`data/channel_traces/deepsense23.npz`; on a CPU one 100-round run takes about
+20–25 minutes, so a GPU is recommended:
+
+```bash
+python run_context_study.py --profile final --aggs bp_fresh bp_reuse   --device cuda --parallel 4 --out-dir results/base_paper_comparison
+```
 
 ## Month 1: Foundation & Baseline (weeks 1–4)
 
@@ -108,8 +139,15 @@ Months 2–3 build on this pipeline. See below.
 
 ## Months 2–3: Byzantine attacks, lossy wireless channel, and CCRA vs the base paper
 
-**Base paper:** *Unmanned Aerial Vehicle-Assisted Federated Learning Method Based on a Trusted Execution Environment*,
-Electronics (MDPI) 2023, 12(18), 3938. Its aggregation method is **CosAvg** (cosine-similarity-based aggregation).
+**Original base paper (historical):** *Unmanned Aerial Vehicle-Assisted Federated Learning Method Based on a Trusted Execution Environment*,
+Electronics (MDPI) 2023, 12(18), 3938. Its aggregation method is called **CosAvg**.
+The project's base paper is now the IEEE letter listed at the top of this README.
+
+> **Attribution note:** the `cosavg` baseline below weights each update by its cosine
+> similarity to the mean update. The paper's Algorithm 2 instead sums pairwise cosine
+> similarities and aggregates the top-ranked updates, so `cosavg` is a CosAvg-style
+> baseline inspired by the paper, not an exact reproduction. The numbers below are
+> kept as historical results, not as a comparison with the published method.
 
 **Our method:** **CCRA**, Context-Calibrated Robust Aggregation.
 
@@ -173,14 +211,14 @@ The attackers are drones 0, 3 and 6, which flip their labels. The jammer targets
 - Results are from a single seed and 30 rounds. Multi-seed runs are next.
 - The channel-context part of CCRA adds only +0.8 points over the no-context ablation (42.2 → 43.0), which is within noise.
 - CCRA uses a 500-image trusted reference set in the TEE and CosAvg does not. Running CosAvg with the same reference is planned.
-- CosAvg is our reimplementation from the paper's description.
+- `cosavg` is a CosAvg-style baseline, not an exact reproduction of the paper's pairwise-scoring Algorithm 2.
 
 ### What was added
 | File | What it does |
 |---|---|
 | `fl/channel.py` | Lossy wireless uplink. Includes drone positions and mobility, log-distance path loss, Rayleigh fading, a ground EW jammer, SINR, a logistic PER curve, per-packet erasures (1,024 params/packet), and residual noise ∝ 10^(−SINR/20). Each drone reports SINR, PER and PDR telemetry. |
 | `fl/client.py` | `make_malicious()` implements a label-flipping attack (c → 9−c, e.g. airplane ↔ truck). |
-| `fl/aggregators.py` | `FedAvg`, `CosAvg` (base paper), `CCRA` (ours), and `ccra_noctx` (an ablation without the channel context). |
+| `fl/aggregators.py` | `FedAvg`, `CosAvg` (CosAvg-style baseline), `CCRA` (ours), and `ccra_noctx` (an ablation without the channel context). |
 | `run_experiments.py` | Runs the full comparison matrix in parallel. |
 | `plot_compare.py` | Produces the accuracy curves, the final-accuracy bars, the weight-share plot and `RESULTS.md`. |
 
@@ -307,7 +345,8 @@ ALIE and IPM intentionally model a strong attacker that observes honest updates
 inside its serving cell. This assumption is written to `assumptions.json`.
 
 Available aggregators are `fedavg`, `cosavg`, `median`, `trimmed_mean`, `krum`,
-`multi_krum`, `fltrust`, `ccra`, and `ccra_noctx`. FLTrust and both CCRA variants
+`multi_krum`, `fltrust`, `ccra`, `ccra_noctx`, `ccra_maskonly`, and the base paper's
+erasure rules `bp_fresh` and `bp_reuse`. FLTrust and both CCRA variants
 use the same clean 500-image root dataset. Those images are excluded from all
 client partitions for every aggregator, preventing train/root overlap and
 keeping the client data budget identical across methods. Client/round randomness

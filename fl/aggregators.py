@@ -10,10 +10,14 @@ Each received update is a dict:
 aggregate() returns (global_delta, info) where info["weights"] maps id -> weight.
 
 * FedAvg : McMahan et al. 2017. Trusts everything and ignores the channel.
-* CosAvg : base paper (Electronics 2023, 12(18):3938). Each update is weighted by
-           its cosine similarity to the mean update, and negative similarity is
-           dropped. Channel-unaware.
+* CosAvg : CosAvg-style baseline inspired by Liao et al. (Electronics 2023,
+           12(18):3938). Each update is weighted by its cosine similarity to the
+           mean update, and negative similarity is dropped. Channel-unaware. The
+           paper's Algorithm 2 instead sums pairwise cosines and keeps the top
+           updates, so this is not an exact reproduction.
 * CCRA   : ours (Context-Calibrated Robust Aggregation). See CCRA docstring.
+* bp_fresh, bp_reuse : the two erasure rules of the IEEE Commun. Lett. base paper
+           (fresh updates only / reuse the last received parameters). Not robust.
 """
 from __future__ import annotations
 
@@ -52,7 +56,7 @@ class FedAvg:
 
 
 class CosAvg:
-    """Cosine-similarity weighted averaging (base paper).
+    """Cosine-similarity weighted averaging (CosAvg-style, see module docstring).
 
     ref   = sample-weighted mean of all received updates
     c_k   = cos(delta_k, ref)
@@ -205,6 +209,69 @@ class FLTrust:
         }
 
 
+class ErasureFresh:
+    """Base paper (Shirvanimoghaddam et al., IEEE Commun. Lett. 2022), Eq. (4).
+
+    The central node averages only what it received in this round, weighted by
+    sample count. The paper erases whole updates; here the rule is applied per
+    packet, so every delivered coordinate is used. Channel-aware, not robust.
+    """
+    name = "bp_fresh"
+
+    def __init__(self, cfg):
+        self.cfg = cfg
+
+    def aggregate(self, updates):
+        D = torch.stack([u["delta"] for u in updates])
+        M = torch.stack([u["mask"] for u in updates])
+        n = torch.tensor([u["n"] * _stale_factor(u, self.cfg) for u in updates], dtype=torch.float32)
+        out = _masked_weighted_average(D, M, n)
+        return out, {"weights": {u["id"]: float(w) for u, w in zip(updates, n / n.sum())}}
+
+
+class ErasureReuse:
+    """Base paper (Shirvanimoghaddam et al., IEEE Commun. Lett. 2022), Eq. (5).
+
+    When a fresh value is missing, the central node reuses the last local
+    *parameters* it received from that UAV. Parameters, not deltas, are stored,
+    so a reused value is re-expressed against the current edge model. Applied
+    per packet, and also to UAVs whose whole update was erased this round.
+    Coordinates never received from a UAV are left out of its contribution.
+    """
+    name = "bp_reuse"
+    needs_base = True
+
+    def __init__(self, cfg):
+        self.cfg = cfg
+        self.params: dict[int, torch.Tensor] = {}
+        self.known: dict[int, torch.Tensor] = {}
+
+    def aggregate(self, updates, base, erased=()):
+        rows, masks, weights, ids = [], [], [], []
+        for u, fresh in [(u, True) for u in updates] + [(u, False) for u in erased]:
+            cid = u["id"]
+            stored = self.params.get(cid, torch.zeros_like(base))
+            known = self.known.get(cid, torch.zeros_like(base, dtype=torch.bool))
+            if fresh:
+                stored = torch.where(u["mask"], base + u["delta"], stored)
+                known = known | u["mask"]
+                self.params[cid], self.known[cid] = stored, known
+            if not known.any():
+                continue
+            rows.append(stored - base)
+            masks.append(known)
+            weights.append(u["n"] * (_stale_factor(u, self.cfg) if fresh else 1.0))
+            ids.append(cid)
+        if not rows:
+            return torch.zeros_like(base), {"weights": {u["id"]: 0.0 for u in updates}}
+        w = torch.tensor(weights, dtype=torch.float32)
+        out = _masked_weighted_average(torch.stack(rows), torch.stack(masks), w)
+        share = dict(zip(ids, (w / w.sum()).tolist()))
+        fresh_ids = {u["id"] for u in updates}
+        return out, {"weights": {u["id"]: share.get(u["id"], 0.0) for u in updates},
+                     "reused": [cid for cid in ids if cid not in fresh_ids]}
+
+
 class CCRA:
     """Context-Calibrated Robust Aggregation.
 
@@ -332,4 +399,8 @@ def build_aggregator(name: str, cfg):
         return CCRA(cfg, use_context=False)
     if name == "ccra_maskonly":  # retain erasure handling, remove telemetry
         return CCRA(cfg, use_context=False, use_mask=True)
+    if name == "bp_fresh":
+        return ErasureFresh(cfg)
+    if name == "bp_reuse":
+        return ErasureReuse(cfg)
     raise ValueError(f"Unknown aggregator '{name}'")
