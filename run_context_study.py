@@ -13,7 +13,6 @@ from dataclasses import asdict
 from pathlib import Path
 
 import numpy as np
-import torch
 
 from fl.config import FLConfig
 
@@ -153,6 +152,7 @@ def run_job(job):
 
 
 def main(argv=None):
+    import torch
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", choices=["pilot", "final"], default="pilot")
     parser.add_argument("--trace-path", type=Path, default=REPO / "data/channel_traces/deepsense23.npz")

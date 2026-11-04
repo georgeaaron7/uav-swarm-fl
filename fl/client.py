@@ -58,6 +58,19 @@ class DroneClient:
         self.context: dict = {}
         self.staleness: int = 0
 
+    def state_dict(self):
+        # Images are immutable and reconstructed from fingerprinted source data.
+        # Labels can be poisoned; no optimizer survives a local_train invocation.
+        return {key: copy.deepcopy(getattr(self, key)) for key in (
+            "client_id", "y", "is_malicious", "attack", "position",
+            "link_telemetry", "context", "staleness")}
+
+    def load_state_dict(self, state):
+        if state["client_id"] != self.client_id or state["y"].shape != self.y.shape:
+            raise ValueError("client partition mismatch")
+        for key, value in state.items():
+            setattr(self, key, copy.deepcopy(value))
+
     def make_malicious(self, attack: str, num_classes: int = 10) -> None:
         """Mark this drone malicious and apply any data-poisoning transform."""
         validate_attack(attack)

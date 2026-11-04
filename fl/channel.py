@@ -46,6 +46,14 @@ class WirelessChannel:
             if ids:
                 self.jammer = topology.positions[ids].mean(axis=0) + rng.normal(0, 20, size=2)
 
+    def state_dict(self):
+        return {"jammed": sorted(self.jammed),
+                "jammer": None if self.jammer is None else self.jammer.copy()}
+
+    def load_state_dict(self, state):
+        self.jammed = set(state["jammed"])
+        self.jammer = None if state["jammer"] is None else state["jammer"].copy()
+
     def _path_loss_db(self, distance_m: np.ndarray) -> np.ndarray:
         return 40.0 + 10.0 * self.cfg.pathloss_exp * np.log10(np.maximum(distance_m, 1.0))
 
