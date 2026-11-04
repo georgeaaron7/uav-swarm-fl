@@ -107,7 +107,8 @@ def restore_rng(state):
         torch.cuda.set_rng_state_all(state["cuda"])
 
 
-def save_checkpoint(server, root, provenance=None):
+def save_checkpoint(server, root, provenance=None, keep=None):
+    """Save a round-boundary checkpoint; with ``keep``, delete all but the newest ``keep``."""
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
     rnd = server.completed_round
@@ -142,7 +143,8 @@ def save_checkpoint(server, root, provenance=None):
         (temp / "COMPLETE").write_text(metadata["sha256"])
         load_checkpoint(temp, identity(server.cfg))
         for filename in ("metadata.json", "COMPLETE"):
-            with (temp / filename).open("rb") as handle:
+            # Windows only allows fsync on a handle opened for writing.
+            with (temp / filename).open("r+b") as handle:
                 os.fsync(handle.fileno())
         os.replace(temp, target)
         if os.name != "nt":
@@ -154,6 +156,10 @@ def save_checkpoint(server, root, provenance=None):
     finally:
         if temp.exists():
             shutil.rmtree(temp)
+    if keep is not None:
+        # Older checkpoints are superseded; the newest ones stay for recovery.
+        for old in sorted(root.glob("round_*"))[:-keep]:
+            shutil.rmtree(old, ignore_errors=True)
     return target
 
 

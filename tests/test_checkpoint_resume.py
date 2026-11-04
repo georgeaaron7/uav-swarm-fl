@@ -152,3 +152,13 @@ def test_integrity_identity_rng_and_fallback(tmp_path):
     with pytest.raises(ValueError, match="checksum"):
         load_checkpoint(paths[-1])
     assert latest_valid(tmp_path / "cp") == paths[0]
+
+
+def test_keep_prunes_old_checkpoints_but_keeps_newest(tmp_path):
+    server = make_server("fedavg", rounds=4)
+    run = tmp_path / "run"
+    run.mkdir()
+    server.run(str(run), lambda s, record: save_checkpoint(s, tmp_path / "cp", keep=2))
+    kept = sorted(p.name for p in (tmp_path / "cp").glob("round_*"))
+    assert kept == ["round_0003", "round_0004"]
+    assert latest_valid(tmp_path / "cp", identity(server.cfg)).name == "round_0004"

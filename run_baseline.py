@@ -34,6 +34,8 @@ def main(argv=None):
     execution.add_argument("--checkpoint-dir")
     execution.add_argument("--checkpoint-every-rounds", type=int, default=10)
     execution.add_argument("--checkpoint-every-seconds", type=float, default=180)
+    # About 12 MB each; keeping every one would cost ~120 MB per 100-round run.
+    execution.add_argument("--checkpoint-keep", type=int, default=2)
     execution.add_argument("--stop-file")
     execution.add_argument("--lease-file")
     execution.add_argument("--progress-file")
@@ -42,6 +44,8 @@ def main(argv=None):
     cfg = parse_args(scientific)
     if options.checkpoint_every_rounds < 1 or options.checkpoint_every_seconds <= 0:
         raise ValueError("checkpoint intervals must be positive")
+    if options.checkpoint_keep < 1:
+        raise ValueError("at least one checkpoint must be kept")
     validate_attack(cfg.attack)
     if cfg.topology not in {"centralized", "hierarchical"}:
         raise ValueError("topology must be centralized or hierarchical")
@@ -199,7 +203,7 @@ def main(argv=None):
         if (record["round"] % options.checkpoint_every_rounds == 0
                 or time.monotonic() - last_checkpoint >= options.checkpoint_every_seconds
                 or stop or record["round"] == cfg.rounds):
-            save_checkpoint(server, checkpoint_root, provenance)
+            save_checkpoint(server, checkpoint_root, provenance, keep=options.checkpoint_keep)
             last_checkpoint = time.monotonic()
         if options.progress_file:
             target = Path(options.progress_file)

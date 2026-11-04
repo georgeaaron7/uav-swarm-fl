@@ -134,3 +134,33 @@ def test_copied_study_can_be_analyzed_without_rewriting_provenance(tmp_path):
     assert not completed(job)
     assert completed(job, copied)
     assert analyze(copied)["terminal_runs"] == 1
+
+
+
+def test_interrupted_job_resumes_from_checkpoint_or_restarts_clean(tmp_path, monkeypatch):
+    import fl.checkpoint
+    from run_context_study import job_directory, resume_arguments
+
+    job = build_jobs(args(tmp_path), tmp_path)[0]
+    directory = job_directory(job)
+    assert resume_arguments(job) == []  # nothing on disk yet
+
+    # Partial run without a usable checkpoint: cleared so run_baseline can start over.
+    directory.mkdir(parents=True)
+    write_json(directory / "config.json", job["config"])
+    (directory / "metrics.csv").write_text("round\n1\n")
+    assert resume_arguments(job) == []
+    assert not directory.exists()
+
+    # Partial run with a valid checkpoint for the same configuration: resumed from it.
+    directory.mkdir(parents=True)
+    write_json(directory / "config.json", job["config"])
+    checkpoint = directory / "checkpoints" / "round_0001"
+    monkeypatch.setattr(fl.checkpoint, "latest_valid", lambda root, expected=None: checkpoint)
+    assert resume_arguments(job) == ["--resume-from", str(checkpoint)]
+    assert directory.exists()
+
+    # A different configuration on disk is never resumed.
+    write_json(directory / "config.json", {**job["config"], "seed": 999})
+    assert resume_arguments(job) == []
+    assert not directory.exists()
