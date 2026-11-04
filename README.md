@@ -411,3 +411,51 @@ under stress. Mask-only CCRA did better: its attacked 5 dB accuracy was 49.48%
 versus full CCRA’s 45.98%. See the [final findings](results/CONTEXT_STUDY_FINAL.md)
 and [complete analysis](results/context_study/CONTEXT_ANALYSIS.md). The earlier
 432-run benchmark remains superseded.
+
+
+## SwarmCompute: Distributed Experiment Execution
+
+SwarmCompute adds a locally hosted coordinator, browser dashboard, CLI and voluntary worker agent. Each physical laptop runs a whole independent FL experiment; UAVs inside it remain simulated clients. The coordinator serves the compiled React dashboard and HTTP API on one port, with SQLite WAL and immutable central artifacts.
+
+```bash
+python3 -m pip install -e ".[server]"
+swarm server init
+swarm server start --host 0.0.0.0 --port 8787
+```
+
+Open the printed LAN URL from another reachable device. No cloud account, domain, dedicated coordinator GPU or running Node development server is required. On a new worker, run `scripts/install-worker.ps1` (Windows) or `bash scripts/install-worker.sh` (Linux), activate its environment, then:
+
+```bash
+swarm join --server http://COORDINATOR_IP:8787
+swarm doctor
+swarm start
+# In another terminal:
+swarm pause --after-round
+swarm resume
+swarm leave
+```
+
+Enrollment is single-use and owner-scoped. Windows 11 and Ubuntu 22.04/24.04 NVIDIA workers are target platforms; target-hardware acceptance remains required. Use a compatible driver/PyTorch build. Keep laptops powered, ventilated and awake; autostart is opt-in and power settings remain owner-controlled. Campus Wi-Fi may block peers; see the LAN guide or use an authorized Tailscale network. Use Tailscale/HTTPS before transmitting credentials on untrusted networks.
+
+Create and explicitly start a study:
+
+```bash
+swarm study create laptop-pilot --profile pilot --aggs fedavg ccra
+swarm study start laptop-pilot
+swarm study status laptop-pilot
+swarm study validate laptop-pilot
+swarm study export laptop-pilot --destination results/laptop-pilot-export
+```
+
+Round-boundary checkpoints preserve model, aggregator, simulation, client, history and RNG state. Leases expire after lost connectivity; another compatible worker resumes centrally validated checkpoints. Attempt fencing prevents stale result replacement. Numerical divergence remains a terminal scientific outcome. Exports retain the existing analysis layout; old results are never overwritten.
+
+**Source mismatch in the supplied spec:** this revision does not contain `bp_fresh`/`bp_reuse`. Unsupported methods are rejected. Any two existing methods across the original four attacks, three channel conditions and ten seeds plan 240 jobs, without claiming those methods implement the absent algorithms. See the source audit before planning the final comparison.
+
+- [Administrator quick start](docs/swarmcompute/ADMIN_SETUP.md)
+- [Laptop owner quick start](docs/swarmcompute/WORKER_SETUP.md)
+- [Windows](docs/swarmcompute/WINDOWS_SETUP.md) · [Linux](docs/swarmcompute/LINUX_SETUP.md)
+- [LAN/Tailscale access](docs/swarmcompute/LAN_ACCESS.md)
+- [Checkpoint state and reproducibility](docs/swarmcompute/CHECKPOINTING.md)
+- [Architecture/API](docs/swarmcompute/ARCHITECTURE.md) · [Operations](docs/swarmcompute/OPERATIONS.md)
+- [Troubleshooting](docs/swarmcompute/TROUBLESHOOTING.md)
+- [Source audit and limits](docs/swarmcompute/AUDIT.md) · [Acceptance evidence](docs/swarmcompute/ACCEPTANCE.md)
