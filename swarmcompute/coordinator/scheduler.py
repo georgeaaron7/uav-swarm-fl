@@ -130,11 +130,13 @@ class Scheduler:
             return False
         if not cap.get("cuda") and not prefs.get("allow_cpu", False):
             return False
-        if any(
-            v and cap.get("datasets", {}).get(k) != v
-            for k, v in job["data"]["datasets"].items()
-        ):
-            return False
+        for key, value in job["data"]["datasets"].items():
+            if not value:
+                continue
+            if key == "dataset_sha256" and value in cap.get("dataset_variants", []):
+                continue
+            if cap.get("datasets", {}).get(key) != value:
+                return False
         budget = prefs.get("vram_budget_mb", 0)
         required = job["data"].get("required_vram_mb")
         if budget and (required is None or required > budget):

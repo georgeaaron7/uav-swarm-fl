@@ -24,12 +24,12 @@ Open the printed LAN URL from a reachable laptop; locally use `http://localhost:
 Prepare CIFAR using existing `python prepare_data.py` and DeepSense using `python scripts/prepare_deepsense23.py /path/to/scenario23`. Dataset preparation may require the original research dependencies (`pip install -r requirements.txt`) in a separate preparation environment; scheduling itself does not require them. Do not redistribute raw datasets without permission.
 
 ```bash
-swarm study create laptop-pilot --profile pilot --aggs fedavg ccra
+swarm study create laptop-pilot --profile pilot --aggs bp_fresh bp_reuse
 swarm study status laptop-pilot
 swarm study start laptop-pilot
 ```
 
-Equivalent creation/start controls are on Overview. Creating a study only plans/fingerprints it; starting explicitly authorizes scheduling. `swarm study create laptop-final --profile final --aggs fedavg ccra` plans 240 jobs: 2 existing methods × 4 attacks × 3 conditions × 10 seeds, 100 rounds. This is a comparison of the named algorithms, **not** an implementation of the absent `bp_fresh`/`bp_reuse` methods. See [source audit](AUDIT.md).
+Equivalent creation/start controls are on Overview. Creating a study only plans/fingerprints it; starting explicitly authorizes scheduling. `swarm study create laptop-final --profile final --aggs bp_fresh bp_reuse` plans 240 jobs: 2 existing methods × 4 attacks × 3 conditions × 10 seeds, 100 rounds. This uses the actual upstream base-paper rules with serialized reuse state. Keep the pair separate from the original six-method context study. See [source audit](AUDIT.md).
 
 Final-profile seeds/rounds retain existing planner defaults. Source and dataset fingerprints are frozen. A worker with different code or data cannot claim the job. Every machine must use the same scientific source files, including checkpoint code.
 

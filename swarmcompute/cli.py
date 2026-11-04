@@ -22,6 +22,32 @@ server = typer.Typer(no_args_is_help=True)
 study = typer.Typer(no_args_is_help=True)
 config_app = typer.Typer(no_args_is_help=True)
 autostart = typer.Typer(no_args_is_help=True)
+data_app = typer.Typer(
+    no_args_is_help=True,
+    help="Export or verify an explicit offline prepared-data handoff.",
+)
+app.add_typer(data_app, name="data")
+
+
+@data_app.command("export")
+def data_export(
+    destination: Annotated[Path, typer.Option()], data_dir: Path = Path("data")
+):
+    from .datasets import export_data
+
+    output(export_data(data_dir, destination))
+
+
+@data_app.command("verify")
+def data_verify(data_dir: Path = Path("data")):
+    from .datasets import verify_data
+
+    report = verify_data(data_dir)
+    output(report)
+    if not report["valid"]:
+        raise typer.Exit(1)
+
+
 app.add_typer(server, name="server")
 app.add_typer(study, name="study")
 app.add_typer(config_app, name="config")
@@ -78,6 +104,32 @@ def server_init(username: str = "admin", port: int = 8787):
     )
     typer.echo(f"Administrator: {username}\nInitial password (shown once): {password}")
     urls(port, True)
+
+
+@server.command("reset-password")
+def server_reset_password(username: Annotated[str, typer.Option()] = "admin"):
+    """Local recovery: set a password for an existing account and revoke its sessions."""
+    from .coordinator import auth
+    from .coordinator import models as m
+    from .coordinator.database import put, rows
+    from .coordinator.scheduler import event
+
+    password = typer.prompt(
+        "New password (at least 12 characters)",
+        hide_input=True,
+        confirmation_prompt=True,
+    )
+    if not 12 <= len(password) <= 256:
+        raise typer.BadParameter("password must contain 12–256 characters")
+    with coordinator().transaction() as c:
+        user = next((u for u in rows(c, m.users) if u["username"] == username), None)
+        if not user:
+            raise typer.BadParameter("unknown username")
+        user["data"]["password_hash"] = auth.hasher.hash(password)
+        put(c, m.users, user)
+        c.execute(m.sessions.delete().where(m.sessions.c.user_id == user["id"]))
+        event(c, "password_reset_locally", user_id=user["id"])
+    typer.echo("Password updated; existing sessions revoked. Sign in again.")
 
 
 @server.command("start")
@@ -466,7 +518,13 @@ def config_set(key: str, value: str):
         raise typer.BadParameter("supported preferences: " + ", ".join(allowed))
     typ = allowed[key]
     try:
-        parsed = json.loads(value) if typ in (bool, list) else typ(value)
+        parsed = (
+            [part.strip() for part in value.split(",") if part.strip()]
+            if typ is list and not value.lstrip().startswith("[")
+            else json.loads(value)
+            if typ in (bool, list)
+            else typ(value)
+        )
     except (ValueError, TypeError):
         raise typer.BadParameter("invalid value")
     if typ is int and parsed < 0:

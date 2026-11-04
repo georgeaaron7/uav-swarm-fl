@@ -53,7 +53,7 @@ def test_documented_join_owner_controls_and_secret_redaction(
     monkeypatch.undo()
 
 
-def test_final_planner_generates_240_and_rejects_absent_algorithms(
+def test_final_planner_generates_240_and_keeps_base_paper_separate(
     tmp_path, monkeypatch
 ):
     from swarmcompute.coordinator.studies import plan_study
@@ -86,8 +86,10 @@ def test_final_planner_generates_240_and_rejects_absent_algorithms(
     assert len(manifest["jobs"]) == 240
     assert {j["config"]["rounds"] for j in manifest["jobs"]} == {100}
     assert {j["seed"] for j in manifest["jobs"]} == set(range(41, 51))
-    with pytest.raises(ValueError, match="unsupported aggregator"):
-        plan_study("matrix", "final", ["bp_fresh", "bp_reuse"], data, trace)
+    base = plan_study("base-paper", "final", ["bp_fresh", "bp_reuse"], data, trace)
+    assert len(base["jobs"]) == 240
+    with pytest.raises(ValueError, match="their own study"):
+        plan_study("mixed", "final", ["bp_fresh", "ccra"], data, trace)
     monkeypatch.setenv("SWARM_HOME", str(tmp_path / "home"))
     result = runner.invoke(
         app,
@@ -108,3 +110,23 @@ def test_final_planner_generates_240_and_rejects_absent_algorithms(
     )
     assert result.exit_code == 0, result.output
     assert "240 jobs planned" in result.output
+
+
+def test_local_password_recovery_revokes_existing_sessions(
+    cluster, tmp_path, monkeypatch
+):
+    application, client, admin = cluster
+    monkeypatch.setenv("SWARM_HOME", str(application.state.db.root))
+    password = "new-owner-chosen-password"
+    result = runner.invoke(
+        app,
+        ["server", "reset-password", "--username", "admin"],
+        input=password + "\n" + password + "\n",
+    )
+    assert result.exit_code == 0, result.output
+    assert password not in result.output
+    assert client.get("/api/v1/settings", headers=admin).status_code == 401
+    response = client.post(
+        "/api/v1/auth/login", json={"username": "admin", "password": password}
+    )
+    assert response.status_code == 200

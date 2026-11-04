@@ -20,7 +20,7 @@ A stable self-hosted coordinator and 3–8 heterogeneous Windows/Linux GPU lapto
 Use actual coordinator state only. No fabricated runs, throughput, sensors or ETA. Physical workers are distinct from virtual UAV clients. Preserve historical results and existing analysis formats. No generic shell execution, mandatory cloud services or automatic driver/sleep changes.
 
 ## Evidence on Hand
-Existing simulator, experiment planner, scientific validation and historical results. bp_fresh and bp_reuse are absent from the inspected revision; unsupported algorithms must not be simulated by aliases. Hardware acceptance on two physical NVIDIA laptops remains an external validation requirement.
+Existing simulator, experiment planner, scientific validation and historical results. Upstream main now supplies bp_fresh and bp_reuse; they are integrated as a separate comparison, with checkpointed reuse state. Hardware acceptance on two physical NVIDIA laptops remains an external validation requirement.
 
 ## Product Principles
 Keep scientific outcomes explicit. Make recovery inspectable. Respect owner control. Prefer maintainable infrastructure and clear, dense monitoring information.

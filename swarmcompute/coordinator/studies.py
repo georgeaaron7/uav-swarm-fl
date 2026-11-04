@@ -10,6 +10,7 @@ import numpy as np
 
 from run_context_study import (
     ATTACKS,
+    BASE_PAPER_METHODS,
     CONDITIONS,
     METHODS,
     build_jobs,
@@ -23,7 +24,12 @@ from . import models as m
 from .auth import uid
 from .database import insert
 
-SUPPORTED_METHODS = set(METHODS) | {"cosavg", "trimmed_mean", "krum", "multi_krum"}
+SUPPORTED_METHODS = set(METHODS + BASE_PAPER_METHODS) | {
+    "cosavg",
+    "trimmed_mean",
+    "krum",
+    "multi_krum",
+}
 
 
 def plan_study(
@@ -42,8 +48,10 @@ def plan_study(
     if profile not in {"pilot", "final"}:
         raise ValueError("unknown profile")
     if not aggs or set(aggs) - SUPPORTED_METHODS:
+        raise ValueError("unsupported aggregator")
+    if set(aggs) & set(BASE_PAPER_METHODS) and set(aggs) - set(BASE_PAPER_METHODS):
         raise ValueError(
-            "unsupported aggregator; bp_fresh/bp_reuse are absent from this source revision"
+            "run base-paper methods as their own study (--aggs bp_fresh bp_reuse)"
         )
     seeds = seeds or ([41, 42] if profile == "pilot" else list(range(41, 51)))
     rounds = rounds if rounds is not None else (2 if profile == "pilot" else 100)

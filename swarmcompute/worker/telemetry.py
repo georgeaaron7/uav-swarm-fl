@@ -107,6 +107,16 @@ def capabilities(config, test_cuda=True):
             result["diagnostics"].append(f"prepared dataset missing: {path}")
         else:
             result["datasets"][key] = None
+    pilot = Path(config.get("data_dir", "data")) / "context_pilot/cifar10.npz"
+    result["dataset_variants"] = list(
+        filter(
+            None,
+            [
+                result["datasets"].get("dataset_sha256"),
+                sha256(pilot) if pilot.is_file() else None,
+            ],
+        )
+    )
     result["ready"] = bool(
         result.get("torch")
         and result["datasets"].get("dataset_sha256")

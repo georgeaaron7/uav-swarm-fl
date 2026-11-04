@@ -81,10 +81,11 @@ def equal(a, b):
 
 
 @pytest.mark.parametrize(
-    "aggregator", ["fedavg", "ccra", "median", "cosavg", "fltrust"]
+    "aggregator",
+    ["fedavg", "ccra", "median", "cosavg", "fltrust", "bp_fresh", "bp_reuse"],
 )
 def test_resume_preserves_scientific_trajectory(tmp_path, aggregator):
-    rounds = 100 if aggregator == "ccra" else 8
+    rounds = 100 if aggregator in {"ccra", "bp_reuse"} else 8
     boundary = 40 if rounds == 100 else 4
     original = make_server(aggregator, rounds)
     a = tmp_path / "a"

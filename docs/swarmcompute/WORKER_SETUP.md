@@ -16,14 +16,15 @@ swarm start
 
 The enrollment code is prompted privately. `--pairing-code` is supported but can expose it in shell history. `join` stores only a scoped, revocable worker credential in the owner configuration directory, with mode 0600 on Unix. On Windows it inherits the user's profile ACL; keep that directory private. New dashboard owner credentials are displayed once. Use a trusted LAN or Tailscale/HTTPS before transmitting credentials on shared networks.
 
-`join --data-dir /prepared/data --trace-path /prepared/deepsense23.npz` selects local files. Pilot studies require the exact balanced subset created by the coordinator's existing `pilot_data()` helper: run the existing pilot planner with `--plan-only`, or prepare that subset identically. Example:
+`join --data-dir /prepared/data --trace-path /prepared/deepsense23.npz` selects local input files. The simplest team setup is an explicitly shared private data ZIP generated on the coordinator:
 
 ```bash
-python run_context_study.py --profile pilot --aggs fedavg ccra --plan-only
-swarm join --server http://COORDINATOR_IP:8787 --data-dir data/context_pilot
+swarm data export --destination /private/path/swarm-worker-data.zip
 ```
 
-Do not use different data to bypass a fingerprint mismatch. Restart/re-enroll into a fresh owner config if changing enrollment; ordinary preferences can be updated with `swarm config set`.
+It contains full CIFAR, the exact precomputed pilot subset, the prepared trace and a checksum/source manifest. Do not publish that ZIP to GitHub. Distribute it only within the authorized study team under the input datasets' terms. On Windows, extract into the repository, then run `.\.venv\Scripts\swarm.exe data verify`. Workers automatically select the full or pilot dataset matching the job; no re-enrollment or path switching is needed. `data verify` also detects scientific source mismatches.
+
+Do not bypass a fingerprint mismatch. Use the same approved source revision and data bundle. Ordinary resource preferences can be updated with `swarm config set`.
 
 ## Owner controls
 
@@ -41,7 +42,7 @@ swarm config set allow_battery false
 swarm config set min_battery 20
 swarm config set max_temperature 85
 swarm config set storage_limit_bytes 21474836480
-swarm config set admin_permissions '["pause","resume","drain"]'
+swarm config set admin_permissions pause,resume,drain
 swarm benchmark
 swarm autostart enable
 swarm autostart disable

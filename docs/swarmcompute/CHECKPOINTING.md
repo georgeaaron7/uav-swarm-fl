@@ -4,7 +4,7 @@ Checkpoint directories contain `state.pt`, `metadata.json`, and `COMPLETE`. A te
 
 Every checkpoint contains models for the global server and all BSs; best accuracy and model; last valid global model; complete round history; round number; CCRA trust; topology positions/altitudes/BS layout/serving/pending/handover counters; jammer and jammed clients; delivery counters; poisoned client labels and persistent metadata; server Generator state; and Python/NumPy/Torch/CUDA RNG state. Immutable input images/traces are reconstructed from hash-checked source data. Client optimizers are deliberately not persisted because each local training invocation constructs a new optimizer.
 
-The inspected checkout has no ErasureReuse or base-paper aggregation implementations. Those absent algorithms have not been replaced by aliases; any future stateful aggregator must implement its own explicit `state_dict`/`load_state_dict`.
+The upstream base-paper algorithms are integrated: `ErasureFresh` exposes empty state; `ErasureReuse` preserves its per-client absolute parameter cache and known-coordinate masks. A 100-round reuse run interrupted at round 40 resumes with identical scientific state in the tested CPU environment. Future stateful aggregators must implement explicit serialization.
 
 ```bash
 python run_baseline.py --resume-from /path/round_0040 \

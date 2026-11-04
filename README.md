@@ -488,7 +488,9 @@ swarm study export laptop-pilot --destination results/laptop-pilot-export
 
 Round-boundary checkpoints preserve model, aggregator, simulation, client, history and RNG state. Leases expire after lost connectivity; another compatible worker resumes centrally validated checkpoints. Attempt fencing prevents stale result replacement. Numerical divergence remains a terminal scientific outcome. Exports retain the existing analysis layout; old results are never overwritten.
 
-**Source mismatch in the supplied spec:** this revision does not contain `bp_fresh`/`bp_reuse`. Unsupported methods are rejected. Any two existing methods across the original four attacks, three channel conditions and ten seeds plan 240 jobs, without claiming those methods implement the absent algorithms. See the source audit before planning the final comparison.
+The upstream `bp_fresh` and `bp_reuse` implementations are now integrated, including checkpoint serialization of reuse parameters/masks. Run their 240-job comparison as a separate study with `--aggs bp_fresh bp_reuse`. The original six-method study remains separate.
+
+For a MacBook coordinator and Windows-only GPU workers, follow [the step-by-step deployment guide](docs/swarmcompute/MAC_WINDOWS_QUICKSTART.md). A private offline data ZIP can be generated with `swarm data export`; it is never published to GitHub.
 
 - [Administrator quick start](docs/swarmcompute/ADMIN_SETUP.md)
 - [Laptop owner quick start](docs/swarmcompute/WORKER_SETUP.md)

@@ -1,0 +1,64 @@
+name: SwarmCompute
+on:
+  pull_request:
+    paths:
+      - 'fl/**'
+      - 'swarmcompute/**'
+      - 'web/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'run_baseline.py'
+      - 'run_context_study.py'
+      - 'pyproject.toml'
+      - '.gitattributes'
+      - '.github/workflows/swarmcompute.yml'
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  cpu-and-browser:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            python: .venv/Scripts/python.exe
+          - os: macos-latest
+            python: .venv/bin/python
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install Python dependencies
+        shell: bash
+        run: |
+          python -m venv .venv
+          ${{ matrix.python }} -m pip install -e '.[server,worker,dev]'
+      - name: Run CPU, protocol and subprocess tests (no GPU claims)
+        shell: bash
+        run: ${{ matrix.python }} -m pytest -q
+      - name: Parse Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errorsFound = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD 'scripts/install-worker.ps1'), [ref]$tokens, [ref]$errorsFound) | Out-Null
+          if ($errorsFound.Count) { $errorsFound | Format-List; exit 1 }
+      - name: Build and test dashboard
+        shell: bash
+        run: |
+          npm ci --prefix web
+          npm run build --prefix web
+          cd web
+          npx playwright install chromium
+          npm run test:e2e

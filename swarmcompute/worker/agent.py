@@ -15,7 +15,13 @@ import httpx
 
 from ..config import read_config, worker_home, write_config
 from ..shared.hashing import sha256
-from .executor import archive, extract_checkpoint, failure_reason, launch
+from .executor import (
+    archive,
+    dataset_directory,
+    extract_checkpoint,
+    failure_reason,
+    launch,
+)
 from .resources import admit, preferences
 from .telemetry import capabilities, telemetry
 
@@ -204,8 +210,12 @@ class Agent:
         cap = capabilities(self.config, False)
         if cap["source_sha256"] != assignment["source_sha256"]:
             raise ValueError("source mismatch")
+        execution_config = dict(self.config)
+        execution_config["data_dir"] = dataset_directory(
+            self.config, assignment["datasets"]["dataset_sha256"]
+        )
         for key, value in assignment["datasets"].items():
-            if value and cap["datasets"].get(key) != value:
+            if key != "dataset_sha256" and value and cap["datasets"].get(key) != value:
                 raise ValueError("dataset mismatch")
         root = self.root / "runs" / assignment["attempt_id"]
         if root.exists():
@@ -217,7 +227,7 @@ class Agent:
             cfg = FLConfig(
                 **{
                     **assignment["config"],
-                    "data_dir": self.config["data_dir"],
+                    "data_dir": execution_config["data_dir"],
                     "channel_trace_path": self.config["trace_path"],
                 }
             )
@@ -225,7 +235,7 @@ class Agent:
             assignment["resume_path"] = str(recovery)
         with self.lock:
             self.run_root = root
-            self.process, output = launch(assignment, self.config, root)
+            self.process, output = launch(assignment, execution_config, root)
         published = set()
         last_round = -1
         stop_at = None

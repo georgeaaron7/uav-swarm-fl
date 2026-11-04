@@ -1,5 +1,7 @@
 # Windows 11 worker
 
+For the current MacBook-coordinator / Windows-only deployment, start with the [complete step-by-step guide](MAC_WINDOWS_QUICKSTART.md). The installer now explicitly asks for a compatible official CUDA wheel index when CUDA-enabled PyTorch is not already working. Do not rely on pip defaults for NVIDIA support.
+
 Follow [owner setup](WORKER_SETUP.md). Use an NVIDIA driver compatible with your GPU and chosen PyTorch CUDA wheel; installation is explicit. The PowerShell installer creates `.venv`, reports `nvidia-smi`, installs the worker extras and runs a CUDA tensor test. It fails clearly rather than replacing drivers.
 
 Activate `.\.venv\Scripts\Activate.ps1`, or invoke `.\.venv\Scripts\swarm.exe`. If policy prevents activation, the direct launcher works without changing machine policy. The documented installer invocation uses a policy override only for that PowerShell process.

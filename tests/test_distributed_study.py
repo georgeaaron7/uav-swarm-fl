@@ -39,10 +39,10 @@ def test_two_workers_execute_and_export_real_pilot(tmp_path):
     rng = np.random.default_rng(10)
     np.savez_compressed(
         data / "cifar10.npz",
-        x_train=rng.integers(0, 256, (2000, 32, 32, 3), dtype=np.uint8),
-        y_train=np.arange(2000) % 10,
-        x_test=rng.integers(0, 256, (500, 32, 32, 3), dtype=np.uint8),
-        y_test=np.arange(500) % 10,
+        x_train=rng.integers(0, 256, (2400, 32, 32, 3), dtype=np.uint8),
+        y_train=np.arange(2400) % 10,
+        x_test=rng.integers(0, 256, (600, 32, 32, 3), dtype=np.uint8),
+        y_test=np.arange(600) % 10,
     )
     home = tmp_path / "coordinator"
     db = Database(home)
@@ -139,7 +139,7 @@ def test_two_workers_execute_and_export_real_pilot(tmp_path):
                 "server": url,
                 "worker_id": joined["worker_id"],
                 "credential": joined["credential"],
-                "data_dir": str(data / "context_pilot"),
+                "data_dir": str(data),
                 "trace_path": str(data / "absent.npz"),
                 "mode": "balanced",
                 "allow_cpu": True,

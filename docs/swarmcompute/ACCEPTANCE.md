@@ -10,11 +10,11 @@ Run the complete Python suite after installing `.[server,worker,dev]` with a com
 python -m pytest -q
 ```
 
-The implementation run passes 69 tests, including the pre-existing scientific suite. New coverage includes:
+The implementation run passes 77 tests, including the pre-existing scientific suite. New coverage includes:
 
 | Requirement | Evidence |
 |---|---|
-| Complete scientific state/RNG recovery | 100-round CCRA interrupted at 40 and resumed; exact weights/scientific histories, trust, handovers, counters, best model and channel state; four other aggregators tested |
+| Complete scientific state/RNG recovery | 100-round CCRA interrupted at 40 and resumed; exact weights/scientific histories, trust, handovers, counters, best model and channel state; six other aggregators tested, including 100-round bp_reuse recovery |
 | Checkpoint integrity and compatibility | Checksum/size/identity failures, incomplete checkpoint rejection, safe loading, older-valid fallback |
 | Round-37 failure | Injected failure inside round 37; latest published checkpoint 30; replacement reconstructs rounds 31–100; expired attempt rejected |
 | Durable queue and fencing | Concurrent claims, only one owner, expiring leases, reopen coordinator DB, stale heartbeat/progress/failure/release rejection |
@@ -59,6 +59,6 @@ The wheel builds with migrations and compiled dashboard assets. Coordinator init
 - [ ] Verify owner pause/drain/resume/leave during real GPU work and storage/network outages.
 - [ ] Execute opt-in Windows Task Scheduler and Linux systemd user autostart/disable/uninstall; verify no unintended service remains.
 - [ ] Compare reproducibility under the actual GPU/software combinations with justified tolerances and recorded provenance.
-- [ ] Locate/approve the absent `bp_fresh`/`bp_reuse` source before claiming to execute the originally named base-paper comparison.
+- [x] Integrate the actual `bp_fresh`/`bp_reuse` implementations from upstream main and verify their state restoration.
 
 The implementation is a working, locally deployable platform with automated CPU/protocol evidence. It is not yet a hardware-accepted SwarmCompute v1 production release under every criterion in the supplied specification.

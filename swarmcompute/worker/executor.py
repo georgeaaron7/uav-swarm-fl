@@ -15,6 +15,19 @@ from ..shared.hashing import scientific_config
 from .resources import environment, preferences
 
 
+def dataset_directory(config, expected_sha256):
+    from ..shared.hashing import sha256
+
+    root = Path(config["data_dir"]).resolve()
+    for candidate in (root, root / "context_pilot"):
+        path = candidate / "cifar10.npz"
+        if path.is_file() and sha256(path) == expected_sha256:
+            return str(candidate)
+    raise ValueError(
+        "dataset mismatch: neither full nor pilot dataset matches the assigned fingerprint"
+    )
+
+
 def launch(assignment, config, root):
     root = Path(root)
     root.mkdir(parents=True, exist_ok=False)
