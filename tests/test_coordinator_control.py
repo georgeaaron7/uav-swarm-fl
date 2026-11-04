@@ -2,6 +2,8 @@ import importlib.util
 import socket
 from pathlib import Path
 
+import httpx
+
 from swarmcompute.coordinator.auth import new_user
 from swarmcompute.coordinator.database import Database
 
@@ -24,7 +26,18 @@ def test_local_coordinator_shortcuts_start_and_stop_only_their_process(
         assert module.control("start", port)["running"]
         assert module.control("start", port)["detail"].startswith("Already running")
         assert module.control("status", port)["running"]
+        with httpx.Client(base_url=f"http://localhost:{port}") as client:
+            token = client.post(
+                "/api/v1/auth/login",
+                json={"username": "admin", "password": "test-only-password"},
+            ).json()["token"]
+            with client.stream(
+                "GET", "/api/v1/stream", headers={"Authorization": "Bearer " + token}
+            ) as response:
+                assert next(response.iter_lines()).startswith("event:")
+                report = module.control("stop", port)
     finally:
-        report = module.control("stop", port)
+        if module.control("status", port)["running"]:
+            module.control("stop", port)
     assert report["stopped"]
     assert not module.control("status", port)["running"]

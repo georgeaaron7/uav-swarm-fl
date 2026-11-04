@@ -146,7 +146,13 @@ def server_start(host: str = "0.0.0.0", port: int = 8787):
 
     from .coordinator.app import create_app
 
-    uvicorn.run(create_app(data_home()), host=host, port=port, access_log=False)
+    uvicorn.run(
+        create_app(data_home()),
+        host=host,
+        port=port,
+        access_log=False,
+        timeout_graceful_shutdown=5,
+    )
 
 
 @server.command("urls")
