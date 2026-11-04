@@ -40,7 +40,16 @@ def _masked_weighted_average(D: torch.Tensor, M: torch.Tensor, weights: torch.Te
     return torch.where(den > 0, num / den.clamp(min=1e-12), torch.zeros_like(num))
 
 
-class FedAvg:
+class AggregatorState:
+    def state_dict(self):
+        return {}
+
+    def load_state_dict(self, state):
+        if state:
+            raise ValueError("stateless aggregator received persistent state")
+
+
+class FedAvg(AggregatorState):
     name = "fedavg"
 
     def __init__(self, cfg):
@@ -55,7 +64,7 @@ class FedAvg:
         return out, {"weights": {u["id"]: float(wi) for wi, u in zip(w, updates)}}
 
 
-class CosAvg:
+class CosAvg(AggregatorState):
     """Cosine-similarity weighted averaging (CosAvg-style, see module docstring).
 
     ref   = sample-weighted mean of all received updates
@@ -80,7 +89,7 @@ class CosAvg:
                      "cos": {u["id"]: c for c, u in zip(cos, updates)}}
 
 
-class CoordinateMedian:
+class CoordinateMedian(AggregatorState):
     name = "median"
 
     def __init__(self, cfg):
@@ -96,7 +105,7 @@ class CoordinateMedian:
         return out, {"weights": {u["id"]: equal for u in updates}}
 
 
-class TrimmedMean:
+class TrimmedMean(AggregatorState):
     name = "trimmed_mean"
 
     def __init__(self, cfg):
@@ -129,7 +138,7 @@ def _pair_distance(a: dict, b: dict) -> torch.Tensor:
     return diff.pow(2).mean()
 
 
-class MultiKrum:
+class MultiKrum(AggregatorState):
     name = "multi_krum"
 
     def __init__(self, cfg, single: bool = False):
@@ -176,7 +185,7 @@ class MultiKrum:
         }
 
 
-class FLTrust:
+class FLTrust(AggregatorState):
     name = "fltrust"
     needs_root = True
 
@@ -209,7 +218,7 @@ class FLTrust:
         }
 
 
-class ErasureFresh:
+class ErasureFresh(AggregatorState):
     """Base paper (Shirvanimoghaddam et al., IEEE Commun. Lett. 2022), Eq. (4).
 
     The central node averages only what it received in this round, weighted by
@@ -229,7 +238,7 @@ class ErasureFresh:
         return out, {"weights": {u["id"]: float(w) for u, w in zip(updates, n / n.sum())}}
 
 
-class ErasureReuse:
+class ErasureReuse(AggregatorState):
     """Base paper (Shirvanimoghaddam et al., IEEE Commun. Lett. 2022), Eq. (5).
 
     When a fresh value is missing, the central node reuses the last local
@@ -245,6 +254,20 @@ class ErasureReuse:
         self.cfg = cfg
         self.params: dict[int, torch.Tensor] = {}
         self.known: dict[int, torch.Tensor] = {}
+
+    def state_dict(self):
+        return {"params": {cid: value.detach().cpu().clone() for cid,value in self.params.items()},
+                "known": {cid: value.detach().cpu().clone() for cid,value in self.known.items()}}
+
+    def load_state_dict(self, state):
+        if set(state) != {"params", "known"} or set(state["params"]) != set(state["known"]):
+            raise ValueError("invalid erasure-reuse state")
+        for cid, value in state["params"].items():
+            mask = state["known"][cid]
+            if value.shape != mask.shape or mask.dtype != torch.bool:
+                raise ValueError("invalid erasure-reuse parameter mask")
+        self.params = {cid:value.detach().cpu().clone() for cid,value in state["params"].items()}
+        self.known = {cid:value.detach().cpu().clone() for cid,value in state["known"].items()}
 
     def aggregate(self, updates, base, erased=()):
         rows, masks, weights, ids = [], [], [], []
@@ -272,7 +295,7 @@ class ErasureReuse:
                      "reused": [cid for cid in ids if cid not in fresh_ids]}
 
 
-class CCRA:
+class CCRA(AggregatorState):
     """Context-Calibrated Robust Aggregation.
 
     1. Trusted reference direction: the aggregator's TEE holds a small clean
@@ -306,6 +329,12 @@ class CCRA:
         self.trust: dict[int, float] = {}
 
     needs_root = True
+
+    def state_dict(self):
+        return {"trust": dict(self.trust)}
+
+    def load_state_dict(self, state):
+        self.trust = dict(state["trust"])
 
     def aggregate(self, updates, root=None):
         cfg = self.cfg

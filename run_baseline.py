@@ -8,6 +8,9 @@ Examples
 """
 from __future__ import annotations
 
+import argparse
+from pathlib import Path
+import platform
 import json
 import os
 import sys
@@ -26,7 +29,23 @@ from fl.utils import count_params, get_device, set_seed
 
 
 def main(argv=None):
-    cfg = parse_args(argv)
+    execution = argparse.ArgumentParser(add_help=False)
+    execution.add_argument("--resume-from")
+    execution.add_argument("--checkpoint-dir")
+    execution.add_argument("--checkpoint-every-rounds", type=int, default=10)
+    execution.add_argument("--checkpoint-every-seconds", type=float, default=180)
+    # About 12 MB each; keeping every one would cost ~120 MB per 100-round run.
+    execution.add_argument("--checkpoint-keep", type=int, default=2)
+    execution.add_argument("--stop-file")
+    execution.add_argument("--lease-file")
+    execution.add_argument("--progress-file")
+    execution.add_argument("--provenance-file")
+    options, scientific = execution.parse_known_args(argv)
+    cfg = parse_args(scientific)
+    if options.checkpoint_every_rounds < 1 or options.checkpoint_every_seconds <= 0:
+        raise ValueError("checkpoint intervals must be positive")
+    if options.checkpoint_keep < 1:
+        raise ValueError("at least one checkpoint must be kept")
     validate_attack(cfg.attack)
     if cfg.topology not in {"centralized", "hierarchical"}:
         raise ValueError("topology must be centralized or hierarchical")
@@ -39,9 +58,16 @@ def main(argv=None):
     torch.set_num_threads(cfg.threads)
 
     run_dir = os.path.join(cfg.out_dir, cfg.name)
+    if Path(run_dir, "summary.json").exists():
+        raise FileExistsError("completed result exists; use a fresh attempt output directory")
+    if Path(run_dir, "metrics.csv").exists() and not options.resume_from:
+        raise FileExistsError("partial run exists; resume or use a fresh output directory")
     os.makedirs(run_dir, exist_ok=True)
-    with open(os.path.join(run_dir, "config.json"), "w") as f:
-        f.write(cfg.to_json())
+    if options.resume_from and Path(run_dir, "config.json").is_file():
+        from fl.checkpoint import scientific_config
+        previous = json.loads(Path(run_dir, "config.json").read_text())
+        if scientific_config(previous) != scientific_config(cfg):
+            raise ValueError("existing run has different scientific configuration")
 
     print(f"Device: {device} | torch {torch.__version__}")
     train_ds, test_ds, num_classes = load_dataset(cfg.dataset, cfg.data_dir, cfg.seed)
@@ -146,10 +172,54 @@ def main(argv=None):
     del train_ds, splits
 
     server = FederatedServer(model, clients, test_ds, cfg, device, root_client=root_client)
+    from fl.checkpoint import identity, load_checkpoint, restore_rng, save_checkpoint
+    provenance = json.loads(Path(options.provenance_file).read_text()) if options.provenance_file else {}
+    if options.resume_from:
+        state, rng, metadata = load_checkpoint(options.resume_from, identity(cfg))
+        server.load_state_dict(state)
+        restore_rng(rng)
+    Path(run_dir, "config.json").write_text(cfg.to_json())
+    Path(run_dir, "runtime.json").write_text(json.dumps({
+        "python": platform.python_version(), "torch": str(torch.__version__),
+        "numpy": np.__version__, "device": str(device),
+        "gpu": torch.cuda.get_device_name(device) if device.type == "cuda" else None,
+        "resumed_from": options.resume_from, "resumed_round": server.completed_round,
+        "provenance": provenance, **identity(cfg)}, indent=2))
+    checkpoint_root = options.checkpoint_dir or str(Path(run_dir) / "checkpoints")
+    last_checkpoint = time.monotonic()
+
+    class PausedAtBoundary(Exception):
+        pass
+
+    def on_round(server, record):
+        nonlocal last_checkpoint
+        stop = bool(options.stop_file and Path(options.stop_file).exists())
+        if options.lease_file:
+            try:
+                lease = json.loads(Path(options.lease_file).read_text())
+                stop = stop or time.monotonic() >= lease["expires_monotonic"]
+            except (OSError, ValueError, KeyError):
+                stop = True
+        if (record["round"] % options.checkpoint_every_rounds == 0
+                or time.monotonic() - last_checkpoint >= options.checkpoint_every_seconds
+                or stop or record["round"] == cfg.rounds):
+            save_checkpoint(server, checkpoint_root, provenance, keep=options.checkpoint_keep)
+            last_checkpoint = time.monotonic()
+        if options.progress_file:
+            target = Path(options.progress_file)
+            temp = target.with_suffix(".tmp")
+            temp.write_text(json.dumps(record, allow_nan=False))
+            temp.replace(target)
+        if stop:
+            raise PausedAtBoundary()
+
     t0 = time.time()
     divergence = None
     try:
-        history = server.run(run_dir)
+        history = server.run(run_dir, on_round=on_round)
+    except PausedAtBoundary:
+        print("PAUSED: durable local checkpoint saved at round boundary", flush=True)
+        return {"paused": True, "completed_rounds": server.completed_round}
     except NumericalDivergenceError as exc:
         divergence = {
             "diverged": True,
@@ -199,7 +269,7 @@ def main(argv=None):
         "total_robustness_bound_violating_cells": sum(
             h.get("robustness_bound_violating_cells", 0) for h in history
         ),
-        "total_time_min": elapsed / 60,
+        "total_time_min": server.elapsed_s / 60,
     }
     with open(os.path.join(run_dir, "summary.json"), "w") as f:
         json.dump(summary, f, indent=2, allow_nan=False)

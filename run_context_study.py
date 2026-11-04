@@ -6,6 +6,7 @@ import hashlib
 import json
 import math
 import platform
+import shutil
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -13,7 +14,6 @@ from dataclasses import asdict
 from pathlib import Path
 
 import numpy as np
-import torch
 
 from fl.config import FLConfig
 
@@ -140,6 +140,34 @@ def completed(job, root=None):
         return False
 
 
+def resume_arguments(job):
+    """Let an interrupted job continue: run_baseline refuses to overwrite a partial run.
+
+    A partial run with the same configuration resumes from its newest valid
+    checkpoint; anything else (no checkpoint, other configuration, or a stale
+    summary) is cleared so the job restarts from round 1.
+    """
+    directory = job_directory(job)
+    if not directory.exists():
+        return []
+    from fl.checkpoint import identity, latest_valid
+
+    try:
+        same_config = read_json(directory / "config.json") == job["config"]
+    except (OSError, ValueError):
+        same_config = False
+    # Checkpoints from other source code or data are skipped, not resumed.
+    checkpoint = (
+        latest_valid(directory / "checkpoints", identity(FLConfig(**job["config"])))
+        if same_config and not (directory / "summary.json").exists()
+        else None
+    )
+    if checkpoint is None:
+        shutil.rmtree(directory)
+        return []
+    return ["--resume-from", str(checkpoint)]
+
+
 def run_job(job):
     cfg = job["config"]
     Path(cfg["out_dir"]).mkdir(parents=True, exist_ok=True)
@@ -147,6 +175,7 @@ def run_job(job):
     for key, value in cfg.items():
         if key != "extra":
             command.extend(["--" + key.replace("_", "-"), str(value)])
+    command.extend(resume_arguments(job))
     log = Path(cfg["out_dir"]) / (cfg["name"] + ".log")
     with log.open("w") as handle:
         result = subprocess.run(command, cwd=REPO, stdout=handle, stderr=subprocess.STDOUT)
@@ -156,6 +185,7 @@ def run_job(job):
 
 
 def main(argv=None):
+    import torch
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", choices=["pilot", "final"], default="pilot")
     parser.add_argument("--trace-path", type=Path, default=REPO / "data/channel_traces/deepsense23.npz")

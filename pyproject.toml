@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=75,<83"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "swarmcompute"
+version = "0.1.0"
+description = "LAN-first independent UAV federated learning experiment orchestration"
+requires-python = ">=3.11"
+dependencies = ["typer>=0.15,<1", "httpx>=0.28,<1", "numpy>=1.26,<3", "psutil>=6,<8", "qrcode>=8,<9"]
+
+[project.optional-dependencies]
+server = ["fastapi>=0.115,<1", "uvicorn>=0.34,<1", "sqlalchemy>=2.0,<2.1", "alembic>=1.14,<2", "argon2-cffi>=23,<26"]
+worker = ["nvidia-ml-py>=12,<14", "torch>=2.2,<3", "torchvision>=0.17,<1", "pillow>=10,<13"]
+dev = ["pytest>=8,<10", "playwright>=1.50,<2", "ruff>=0.12,<1"]
+
+[project.scripts]
+swarm = "swarmcompute.cli:app"
+
+[tool.setuptools]
+py-modules = ["run_baseline", "run_context_study", "analyze_context_study"]
+
+[tool.setuptools.packages.find]
+include = ["swarmcompute*", "fl*"]
+
+[tool.setuptools.package-data]
+swarmcompute = ["static/**/*", "static/*", "coordinator/migrations/script.py.mako"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110

@@ -44,6 +44,18 @@ class SwarmTopology:
         self.pending_rounds = np.zeros(num_clients, dtype=int)
         self.handover_counts = np.zeros(num_clients, dtype=int)
 
+    def state_dict(self):
+        return {key: getattr(self, key).copy() for key in (
+            "positions", "altitudes", "base_stations", "serving", "pending",
+            "pending_rounds", "handover_counts")}
+
+    def load_state_dict(self, state):
+        for key, value in self.state_dict().items():
+            if state[key].shape != value.shape:
+                raise ValueError(f"topology shape mismatch: {key}")
+        for key, value in state.items():
+            setattr(self, key, value.copy())
+
     @staticmethod
     def _make_bs_layout(n: int, radius: float) -> np.ndarray:
         # BS 0 is the measured/reference site for trace-driven experiments.

@@ -84,8 +84,42 @@ class FederatedServer:
                             for _ in range(self.topology.num_base_stations)]
         self.rng = np.random.default_rng(cfg.seed)
         self.history: list[dict] = []
+        self.completed_round = 0
+        self.best_accuracy = 0.0
+        self.best_model_state = None
+        self.last_valid_global_state = copy.deepcopy(self.model.state_dict())
+        self.elapsed_s = 0.0
         self.delivery_sum = np.zeros(len(clients), dtype=float)
         self.delivery_attempts = np.zeros(len(clients), dtype=int)
+
+    def state_dict(self):
+        return copy.deepcopy({
+            "completed_round": self.completed_round, "model": self.model.state_dict(),
+            "edge_models": [m.state_dict() for m in self.edge_models],
+            "best_accuracy": self.best_accuracy, "best_model_state": self.best_model_state,
+            "last_valid_global_state": self.last_valid_global_state, "history": self.history,
+            "aggregator": self.aggregator.state_dict(), "topology": self.topology.state_dict(),
+            "channel": self.channel.state_dict(), "delivery_sum": self.delivery_sum,
+            "delivery_attempts": self.delivery_attempts, "rng": self.rng.bit_generator.state,
+            "clients": [c.state_dict() for c in self.clients],
+            "root_client": self.root_client.state_dict() if self.root_client else None,
+            "elapsed_s": self.elapsed_s,
+        })
+
+    def load_state_dict(self, state):
+        if len(state["edge_models"]) != len(self.edge_models) or len(state["clients"]) != len(self.clients):
+            raise ValueError("simulation dimensions differ")
+        self.model.load_state_dict(state["model"])
+        for m, value in zip(self.edge_models, state["edge_models"]): m.load_state_dict(value)
+        self.aggregator.load_state_dict(state["aggregator"])
+        self.topology.load_state_dict(state["topology"])
+        self.channel.load_state_dict(state["channel"])
+        self.rng.bit_generator.state = state["rng"]
+        for client, value in zip(self.clients, state["clients"]): client.load_state_dict(value)
+        if self.root_client: self.root_client.load_state_dict(state["root_client"])
+        for key in ("completed_round", "best_accuracy", "best_model_state", "last_valid_global_state",
+                    "history", "delivery_sum", "delivery_attempts", "elapsed_s"):
+            setattr(self, key, copy.deepcopy(state[key]))
 
     def _training_seed(self, rnd: int, client_id: int) -> int:
         return int(
@@ -156,7 +190,7 @@ class FederatedServer:
             edge_model.load_state_dict(synced_state)
         return population_weights
 
-    def run(self, run_dir: str) -> list[dict]:
+    def run(self, run_dir: str, on_round=None) -> list[dict]:
         cfg = self.cfg
         csv_path = os.path.join(run_dir, "metrics.csv")
         fields = [
@@ -168,11 +202,14 @@ class FederatedServer:
             "global_sync", "round_time_s",
         ]
         with open(csv_path, "w", newline="") as handle:
-            csv.DictWriter(handle, fieldnames=fields).writeheader()
+            writer = csv.DictWriter(handle, fieldnames=fields, extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(self.history)
+        if self.best_model_state is not None:
+            torch.save(self.best_model_state, os.path.join(run_dir, "best_model.pt"))
 
-        best_accuracy = 0.0
         malicious = {c.client_id for c in self.clients if c.is_malicious}
-        for rnd in range(1, cfg.rounds + 1):
+        for rnd in range(self.completed_round + 1, cfg.rounds + 1):
             # Keep a known-good globally synchronized state. If an attack makes
             # a run diverge, the caller can save this state without persisting
             # NaN/Inf parameters as if they were a trained model.
@@ -398,9 +435,14 @@ class FederatedServer:
                 csv.DictWriter(handle, fieldnames=fields, extrasaction="ignore").writerow(record)
 
             accuracy = record.get("test_acc")
-            if accuracy is not None and accuracy > best_accuracy:
-                best_accuracy = accuracy
+            if accuracy is not None and accuracy > self.best_accuracy:
+                self.best_accuracy = accuracy
+                self.best_model_state = copy.deepcopy(self.model.state_dict())
                 torch.save(self.model.state_dict(), os.path.join(run_dir, "best_model.pt"))
+            self.completed_round = rnd
+            self.elapsed_s += record["round_time_s"]
+            if on_round is not None:
+                on_round(self, record)
             accuracy_text = f"{accuracy * 100:6.2f}%" if accuracy is not None else "   -   "
             print(
                 f"[{cfg.name} r{rnd:3d}/{cfg.rounds}] acc={accuracy_text} "
