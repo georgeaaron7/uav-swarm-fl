@@ -127,3 +127,35 @@ def test_maskonly_preserves_delivered_values_without_telemetry():
     perturbed, other_info = build_aggregator("ccra_maskonly", cfg).aggregate([received, full], root)
     assert torch.equal(masked, perturbed)
     assert info["trust"] == other_info["trust"]
+
+
+def test_base_paper_fresh_averages_only_delivered_coordinates():
+    lost = update(0, [4.0, 0.0], [True, False])
+    full = update(1, [2.0, 2.0])
+    result, _ = build_aggregator("bp_fresh", FLConfig()).aggregate([lost, full])
+    assert torch.allclose(result, torch.tensor([3.0, 2.0]))
+
+
+def test_base_paper_reuse_fills_lost_packets_with_last_received_parameters():
+    aggregator = build_aggregator("bp_reuse", FLConfig())
+    base = torch.tensor([10.0, 10.0])
+    aggregator.aggregate([update(0, [1.0, 1.0])], base=base)  # stores parameters [11, 11]
+    # The edge model moved to [12, 12]; UAV 0 now loses its second packet.
+    new_base = torch.tensor([12.0, 12.0])
+    result, _ = aggregator.aggregate([update(0, [3.0, 0.0], [True, False])], base=new_base)
+    # Fresh coordinate is used as is; the lost one reuses parameter 11, i.e. delta -1.
+    assert torch.allclose(result, torch.tensor([3.0, -1.0]))
+
+
+def test_base_paper_reuse_includes_fully_erased_uavs():
+    aggregator = build_aggregator("bp_reuse", FLConfig())
+    base = torch.zeros(1)
+    aggregator.aggregate([update(0, [1.0]), update(1, [3.0])], base=base)
+    erased = update(1, [0.0], [False])
+    result, info = aggregator.aggregate([update(0, [1.0])], base=base, erased=[erased])
+    assert result.item() == pytest.approx(2.0)  # UAV 1's stored 3.0 is reused
+    assert info["reused"] == [1]
+    # A UAV never heard from contributes nothing.
+    result, _ = build_aggregator("bp_reuse", FLConfig()).aggregate(
+        [update(0, [1.0])], base=base, erased=[erased])
+    assert result.item() == pytest.approx(1.0)

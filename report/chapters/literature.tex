@@ -15,8 +15,8 @@ non-IID skew in experiments; we use $\alpha=0.5$.
 
 Hierarchical FL adds an intermediate layer of edge servers. Clients send updates to a
 nearby edge server, which aggregates them frequently, and the edge servers
-synchronize with each other less often. This matches a UAV swarm served by several
-ground base stations, each covering part of the operating area.
+synchronize with each other less often \citep{abad2020hfl}. This matches a UAV swarm
+served by several ground base stations, each covering part of the operating area.
 
 \section{Byzantine-Robust Aggregation}
 A single malicious client can move the FedAvg average arbitrarily far, so a large
@@ -32,7 +32,15 @@ body of work replaces the mean by a robust statistic.
   dataset. The server computes its own update on that data each round, scores each
   client by the (clipped at zero) cosine similarity to it, and rescales every client
   update to the norm of the server update before averaging.
+\item \textbf{Geometric median} (RFA) \citep{pillutla2022rfa} aggregates with an
+  approximate geometric median, which differs from the coordinate-wise median.
 \end{itemize}
+Non-IID data make honest updates look different from each other, which a robust rule
+can mistake for an attack; bucketing \citep{karimireddy2022bucketing} adapts robust
+rules to heterogeneous data. Attacks that accumulate small changes over rounds are
+countered by using history, through worker momentum and iterative clipping
+\citep{karimireddy2021history}; this is related to, but different from, keeping a
+reputation per client.
 These rules are evaluated against attacks of increasing strength. A sign-flip attack
 sends a scaled negative of an honest update. ALIE (``A Little Is Enough'')
 \citep{baruch2019alie} shifts each coordinate by a small multiple of the honest
@@ -48,17 +56,30 @@ rounds as a partially observable Markov decision process over the server's hidde
 trust score, and suppress accuracy under reputation defences that stop static attacks.
 
 \section{Federated Learning over Unreliable Wireless Links}
-In wireless FL the update itself travels over a noisy channel. \citet{shirvanimoghaddam2022erroneous} study FL in which the
-communication links are erroneous; this letter is the base paper for our study of
-lossy links. \citet{barkatsa2024jamming} consider malicious clients that jam the
+In wireless FL the update itself travels over a noisy channel.
+\citet{shirvanimoghaddam2022erroneous}, the base paper of this project, model each
+device-to-server link as a packet erasure channel: a device's whole update is either
+erased or received, with an erasure probability obtained from the normal
+approximation for short-packet transmission. They compare two server rules, averaging
+only the fresh updates received in a round or reusing a device's last received
+parameters when its fresh update is missing. They prove that, for convex and smooth
+local losses, the reuse rule converges to the same global parameters as error-free
+FL, and observe that with uniformly distributed data the fresh-only rule can converge
+faster. Their model has no adversaries. We adopt the erasure view at packet
+granularity, so that an update can arrive partially, and use both of their rules as
+baselines (Section~\ref{sec:method-baselines}). \citet{barkatsa2024jamming} consider malicious clients that jam the
 non-orthogonal multiple access (NOMA) uplink of legitimate ones, and let every client
 choose its transmit power in a Bayesian game with incomplete information about the
 other clients' types. \citet{li2022dpbyz} combine communication efficiency (1-bit
 compressed sensing of sign-based gradients), differential privacy and Byzantine
-robustness, but do not model lost packets. None of these asks how lost packets
-interact with a robust aggregator: the adversaries in \citet{barkatsa2024jamming}
-attack the channel rather than the model, and the Byzantine-robust method of
-\citet{li2022dpbyz} assumes that every update arrives.
+robustness, but do not model lost packets. Byzantine robustness has also been studied
+for analog over-the-air aggregation, in which clients transmit simultaneously and the
+channel itself computes a sum: \citet{sifaou2022ota} aggregate robustly across random
+groups, \citet{yao2025fedsac} combine Byzantine identification, adaptive clustering
+and aggregation weights, and \citet{fan2026uavbyz} use UAVs to collect gradients over
+the air from heterogeneous workers under Byzantine attack. In those systems the server
+cannot observe individual updates, whereas our UAVs send individually observable
+digital updates that may lose packets.
 
 \section{Federated Learning for UAV Swarms}
 \citet{xiao2021uavswarm} propose fully decentralized FL for
@@ -66,47 +87,58 @@ on-board missions of a UAV swarm: UAVs exchange models with neighbours over a
 time-varying graph instead of through a server, using an inexact stochastic parallel
 random-walk ADMM, and the framework is demonstrated on beamforming design. It
 considers neither adversarial UAVs nor packet loss. \citet{liao2023tee} propose
-UAV-assisted FL based on a trusted execution environment (TEE) and aggregate updates
-by their cosine similarity to the mean update (CosAvg); our preliminary study
-re-implements CosAvg as a baseline. Realistic UAV link data have recently become
+UAV-assisted FL in which the UAV aggregates inside a trusted execution environment
+(TEE), using a robust rule they call CosAvg: each client is scored by the sum of its
+pairwise cosine similarities with the others, and the top-ranked updates are averaged.
+Our preliminary study used a simpler CosAvg-style baseline that weights each update by
+its cosine similarity to the mean update; it is not an exact reproduction. Realistic UAV link data have recently become
 available: the DeepSense~6G dataset \citep{alkhateeb2023deepsense} includes a
 scenario with a flying UAV and a ground base station \citep{charan2025drone}, which we
 use to drive packet losses in simulation.
 
 \section{Research Gap}
-Table~\ref{tab:gap} summarizes the gap. Robust rules either compare updates as if
-they were complete, treating a lost packet as a zero, or ignore the channel entirely.
-Channel-aware designs model adversaries, if at all, as jammers rather than as clients
-that send poisoned updates. It is also natural to assume
-that link telemetry (signal quality, delivery ratio, handover state) should make a
-robust aggregator \emph{fairer} to honest UAVs on poor links, but we found no
-controlled test of that assumption. This project provides one.
+Table~\ref{tab:gap} summarizes the reviewed work; it is a small sample and does not
+establish that no other work covers these points. Prior work addresses Byzantine
+robustness in conventional FL, where robust rules were defined for complete update
+vectors, and in analog over-the-air aggregation, including UAV-assisted
+architectures. Work on erroneous links, such as the base paper, assumes honest
+clients. This project studies a different setting: digital packet erasures in
+hierarchical FL with UAV clients, together with model-poisoning attackers. It is also
+natural to assume that link telemetry (signal quality, delivery ratio, handover state)
+should make a robust aggregator \emph{fairer} to honest UAVs on poor links. This
+project tests that assumption with a paired ablation that separates
+delivered-coordinate masking from telemetry-weighted reputation.
 
 \begin{table}[ht]
 \centering
 \caption[Coverage of the problem in the reviewed work]{Coverage of the problem in the
-reviewed work. The entries for \citep{shirvanimoghaddam2022erroneous} and
-\citep{liao2023tee} are based on their titles and abstracts and are to be confirmed
-against the full texts.}
+reviewed work. ``Poisoned updates'' means model- or data-poisoning clients;
+``digital erasures'' means individually received updates that can be lost in whole or
+in part.}
 \label{tab:gap}
 \small
 \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X
-    *{4}{>{\centering\arraybackslash}p{16mm}}@{}}
+    *{4}{>{\centering\arraybackslash}p{17mm}}@{}}
 \toprule
-Work & Byzantine clients & Packet loss & UAV setting & Measured channel \\
+Work & Poisoned updates & Digital erasures & UAV setting & Measured channel \\
 \midrule
 FedAvg \citep{mcmahan2017fedavg} & -- & -- & -- & -- \\
 Krum, median \citep{blanchard2017krum,yin2018median} & \checkmark & -- & -- & -- \\
 FLTrust \citep{cao2021fltrust} & \checkmark & -- & -- & -- \\
 Erroneous links \citep{shirvanimoghaddam2022erroneous} & -- & \checkmark & -- & -- \\
-Jamming mitigation \citep{barkatsa2024jamming} & jammers\textsuperscript{a} & \checkmark & -- & -- \\
+Jamming mitigation \citep{barkatsa2024jamming} & --\textsuperscript{a} & \checkmark & -- & -- \\
 DP + Byzantine \citep{li2022dpbyz} & \checkmark & -- & -- & -- \\
+Over-the-air robust FL \citep{sifaou2022ota,yao2025fedsac} & \checkmark & --\textsuperscript{b} & -- & -- \\
+UAV-assisted over-the-air FL \citep{fan2026uavbyz} & \checkmark & --\textsuperscript{b} & \checkmark & -- \\
 UAV-swarm FL \citep{xiao2021uavswarm} & -- & -- & \checkmark & -- \\
 TEE + CosAvg \citep{liao2023tee} & \checkmark & -- & \checkmark & -- \\
-\textbf{This project} & \checkmark & \checkmark & \checkmark & \checkmark \\
+\textbf{This project} & \checkmark & \checkmark & \checkmark & \checkmark\textsuperscript{c} \\
 \bottomrule
 \end{tabularx}
 
-\raggedright\footnotesize\textsuperscript{a}Malicious clients jam the uplink; they do
-not send poisoned updates.
+\raggedright\footnotesize
+\textsuperscript{a}Malicious clients jam the uplink; they do not send poisoned updates.
+\textsuperscript{b}Analog channel impairment of a superposed sum, not digital erasures.
+\textsuperscript{c}Relative power variation of one measured link, with virtual
+neighbouring BSs and assumed SNR anchors.
 \end{table}

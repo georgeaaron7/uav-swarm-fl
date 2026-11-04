@@ -10,9 +10,10 @@ the committed run-level data by the script described in Appendix~B.
 \section{Implementation and Verification}
 The framework is written in Python with PyTorch. Runs are configured by a single
 dataclass, and every run stores its full configuration, per-round history and final
-model. The repository contains 43 automated tests covering data partitioning, the
-FedAvg update, attack construction, every robust aggregator, the hierarchical server,
-handover logic, trace loading and the analysis code. A code review of the
+model. The repository contains 46 automated tests covering data partitioning, the
+FedAvg update, attack construction, every robust aggregator, the base paper's two
+erasure rules, the hierarchical server, handover logic, trace loading and the
+analysis code. A code review of the
 hierarchical extension found three problems, which were fixed before the controlled
 study was run: the reputation rule shielded jammed attackers, the no-context
 ablation still read packet delivery ratios, and FLTrust's root update took too few
@@ -21,8 +22,8 @@ training steps.
 \section{Experimental Protocol}
 \subsection{Preliminary Study}
 The first comparison used the synthetic jammed channel with one BS, a 30\% label-flip
-attack, 30 rounds and a single seed. It compared FedAvg, CosAvg and an early version
-of CCRA under four scenarios: no attack or attack, each with an ideal or a jammed
+attack, 30 rounds and a single seed. It compared FedAvg, the CosAvg-style baseline and
+an early version of CCRA under four scenarios: no attack or attack, each with an ideal or a jammed
 lossy channel. Its purpose was to check that the pipeline worked and to estimate
 effect sizes.
 
@@ -33,8 +34,10 @@ FLTrust and the three CCRA variants), four attack settings (clean, sign flip, AL
 IPM), three channel conditions (ideal; trace at 15\,dB; trace at 5\,dB) and
 \NumSeeds{} seeds, for \NumRuns{} runs of 100 rounds each with $K=10$, $B=3$, $E=5$
 and $\alpha=0.5$. Within a seed, the data split, initial model, attacker identities
-and trace positions are identical across methods, so every comparison is paired. The
-runs were executed on an NVIDIA A100 GPU.
+and trace positions are identical across methods, so every comparison is paired.
+There is no jammer and no additive noise on delivered parameters. The training set
+is the 49{,}500 client images plus the disjoint 500-image root set. The runs were
+executed on an NVIDIA A100 GPU.
 
 The analysis plan was fixed before any run:
 \begin{itemize}
@@ -50,6 +53,16 @@ The analysis plan was fixed before any run:
 \item All other contrasts are exploratory and are not adjusted for multiple
   comparisons.
 \end{itemize}
+
+\subsection{Comparison with the Base Paper}
+\label{sec:bp-protocol}
+The base paper's two erasure rules (Section~\ref{sec:method-baselines}), fresh-only
+and reuse-old, are run as a separate comparison on the same seeds, attacker
+identities, channel conditions and attack settings as the controlled study:
+$2\times4\times3\times10=240$ runs. They are not added to the prespecified matrix, and
+no parameter is tuned on its seeds. The rules are implemented and tested; at the
+time of writing the 240 runs are pending, because the trace-driven conditions need
+the prepared DeepSense data and a GPU.
 
 \section{FedAvg Baseline Results}
 The first objective was a working FL pipeline without any defence. Ten UAVs trained
@@ -79,11 +92,14 @@ Non-IID, Dirichlet $\alpha=0.5$ & 60.23 & 60.58 \\
 \end{figure}
 
 Non-IID data cost about 2.4 percentage points, and neither curve had fully levelled
-off by round 50. These numbers set the reference for the attack experiments: any
-defence should keep accuracy close to them when no attack is present.
+off by round 50. These accuracies are not direct targets for the later experiments,
+which use 30 or 100 rounds, one local epoch and, in the controlled study, a
+hierarchical system; robust methods are instead compared with matched clean controls
+within each experiment.
 
 \section{Preliminary Study Results}
-The preliminary study compared FedAvg, CosAvg and an early version of CCRA with one
+The preliminary study compared FedAvg, the CosAvg-style baseline (inspired by
+\citet{liao2023tee}, not an exact reproduction) and an early version of CCRA with one
 BS, 30 rounds, one local epoch and a single seed. Three of the ten UAVs flipped their
 labels, and in the jammed scenarios a ground jammer targeted three honest UAVs.
 Table~\ref{tab:prelim} lists the final accuracy (mean of the last five rounds), and
@@ -92,7 +108,8 @@ weight each method gave to the attackers.
 
 \begin{table}[ht]
 \centering
-\caption{Preliminary study: final accuracy (\%), single seed, 30 rounds}
+\caption{Preliminary study: final accuracy (\%), single seed, 30 rounds. CosAvg is our
+CosAvg-style baseline, not the published method.}
 \label{tab:prelim}
 \begin{tabular}{@{}lccc@{}}
 \toprule
@@ -128,7 +145,8 @@ These results were encouraging, but they could not support a claim:
 \begin{itemize}
 \item they came from one seed, so the size of the random variation was unknown;
 \item the channel-aware part of CCRA added only 0.8 points over its no-context
-  ablation (42.2 to 43.0\%), well within single-run noise;
+  ablation (42.2 to 43.0\%), and with one seed the uncertainty in that difference
+  could not be estimated;
 \item CCRA used a trusted root set while CosAvg did not, so the comparison mixed two
   differences;
 \item the reputation rule was revised when the system was extended to hierarchical
@@ -156,16 +174,16 @@ under attack across the three channel conditions.
 \centering
 \includegraphics[width=0.75\textwidth]{accuracy_vs_channel.pdf}
 \caption{Final accuracy under attack (mean over sign flip, ALIE and IPM and
-\NumSeeds{} seeds), with 95\% bootstrap confidence intervals.}
+\NumSeeds{} seeds). Error bars: 95\% paired-seed bootstrap intervals.}
 \label{fig:acc}
 \end{figure}
 
 FedAvg diverged in \DivFedavg{} and the coordinate-wise median in \DivMedian{} of
-their 120 runs; the sign-flip attack destroys FedAvg in every seed. None of the
+their 120 runs; FedAvg diverged in all 30 sign-flip runs. None of the four
 methods that use a trusted reference update (FLTrust and the three CCRA variants)
-diverged in any run. The median does worse than expected because each cell holds
-only a few UAVs, so one attacker in a cell is already a large fraction of the values
-being compared. Over all runs the mask-only variant has the highest accuracy,
+diverged in its 120 runs. A plausible explanation for the median's failures, not
+tested by a separate diagnostic, is that each cell holds only a few UAVs, so one
+attacker in a cell is already a large fraction of the values being compared. Over all runs the mask-only variant has the highest accuracy,
 \AllMask\%, against \AllFedavg\% for FedAvg. Table~\ref{tab:per-attack} breaks the
 result down by attack.
 
@@ -220,7 +238,7 @@ hid two opposite effects.
 \label{sec:mechanism}
 Section~\ref{sec:fixed-point} predicted that slowing rewards on weak links would push
 honest UAVs' reputations down without doing much to attackers.
-Figure~\ref{fig:gate} confirms that pattern.
+Figure~\ref{fig:gate} is consistent with that pattern.
 
 \begin{figure}[ht]
 \centering
@@ -232,7 +250,8 @@ averaged over attacks and seeds.}
 
 With telemetry, the gate rejected \RejCcra\% of honest updates against \RejMask\%
 without it, while the share of attacker updates accepted fell only from \AccptMask\%
-to \AccptCcra\%. The rule gave up a large amount of honest data to filter slightly
+to \AccptCcra\%. The accuracy loss from telemetry was accompanied by this rise in
+honest-update rejection. The rule gave up a large amount of honest data to filter slightly
 more attacker data, and it did so precisely when honest data were already scarce
 because of packet loss. These rates are descriptive. They agree with the analysis in
 Section~\ref{sec:fixed-point}, but they do not by themselves prove that it is the
@@ -240,26 +259,31 @@ cause.
 
 \subsection{Comparison with FLTrust}
 FLTrust is the closest established method, since it uses the same root set. Its gate
-rejected only \RejFltrust\% of honest updates at 5\,dB, because it has no memory:
-each round is judged on its own. In an exploratory paired comparison, mask-only was
+rejected only \RejFltrust\% of honest updates at 5\,dB. It has no reputation memory,
+since each round is judged on its own, but its norm matching, score normalization,
+weights and gating also differ from CCRA's, so the lower rejection cannot be
+attributed to memory alone. In an exploratory paired comparison, mask-only was
 \VsFltTrace{} points better than FLTrust under attack at 15\,dB
-(\ci{\VsFltTraceLo}{\VsFltTraceHi}), but at 5\,dB the two were indistinguishable
-($\VsFltStress$ points, \ci{\VsFltStressLo}{\VsFltStressHi}). The two methods differ
-in more than memory, so this comparison cannot isolate its effect; one reading
-consistent with the mechanism above is that reputation memory helps on good links and
-stops helping on weak ones.
+(\ci{\VsFltTraceLo}{\VsFltTraceHi}), while the 5\,dB comparison was inconclusive
+($\VsFltStress$ points, \ci{\VsFltStressLo}{\VsFltStressHi}): the interval supports
+neither a difference nor practical equivalence, since it is not entirely inside
+$\pm1$ point. One reading consistent with the mechanism above is that reputation
+memory helps on good links and stops helping on weak ones.
 
 \section{Discussion}
 \subsection{What the Results Show}
 \begin{enumerate}
-\item A trusted reference update is what keeps training stable: every method that
-  used one avoided divergence, and every method that did not diverged in some runs.
-\item Among channel-aware mechanisms, erasure masking is simple, costs nothing on a
-  good channel (its 15\,dB contrast is inside the equivalence region) and helps
-  substantially on a weak one.
+\item All four root-referenced methods avoided divergence in their 120 runs each,
+  while FedAvg and the median diverged in some runs. This association does not
+  isolate the contribution of the root set.
+\item Among channel-aware mechanisms, erasure masking is simple; under attack its
+  15\,dB accuracy contrast lies within the prespecified equivalence region, and it
+  helps substantially on a weak link. No computational or communication overhead was
+  measured.
 \item The intuitive idea of letting link quality soften judgement backfired. The
-  failure is structural: an asymmetric reputation update biases trust downwards for
-  exactly the UAVs it was meant to protect.
+  analysis of Section~\ref{sec:fixed-point} suggests a structural reason: an
+  asymmetric reputation update can bias trust downwards for the UAVs it was meant to
+  protect.
 \end{enumerate}
 
 \subsection{Why a Negative Result Is Useful}
@@ -275,8 +299,10 @@ change.
 \item \textbf{Channel realism.} The trace comes from one measured BS; the other BSs
   are virtual, and the 5 and 15\,dB anchors are assumptions, not calibrated values.
   The runs contain few handovers, so no claim is made about high mobility.
-\item \textbf{Scope of learning task.} One dataset, one model, ten UAVs and fixed
-  attack strengths were used.
+\item \textbf{Scope of learning task.} One dataset (aerial-transformed CIFAR-10, not
+  genuine UAV imagery), one model, ten UAVs and fixed attack strengths were used.
+\item \textbf{Trust assumptions.} The root set is assumed clean; no trusted execution
+  environment or attestation was implemented or evaluated.
 \item \textbf{Attacker model.} Telemetry is assumed authentic, and adaptive attacks on
   the reputation itself \citep{liu2026evade} were not tested.
 \item \textbf{Statistics.} Ten seeds give approximate intervals; secondary contrasts

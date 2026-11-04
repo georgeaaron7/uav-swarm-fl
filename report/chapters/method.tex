@@ -54,19 +54,23 @@ another BS is stronger by a hysteresis margin of 3\,dB for two consecutive round
 which avoids ping-pong handovers (\texttt{fl/topology.py}).
 
 \subsection{Dataset and Model}
-Images come from CIFAR-10, modified to resemble aerial imagery
-(\texttt{fl/data.py}). Each image is rotated by a random multiple of
+Images come from CIFAR-10, transformed to imitate some properties of aerial imagery
+(\texttt{fl/data.py}); we call the result aerial-transformed CIFAR-10, since the
+transformations do not make it genuine UAV imagery. Each image is rotated by a random multiple of
 $90^\circ$, since a downward-looking camera has no preferred orientation, and with
 probability 0.3 or 0.2 is down-sampled to $24\times24$ or $16\times16$ pixels and
-up-sampled again to imitate higher flight altitudes. The 50{,}000 training images
-are split among the UAVs either uniformly (IID) or with Dirichlet($\alpha$)
-class proportions; 500 images (50 per class) are held out as the trusted root set
-$\mathcal{D}_0$ and are never given to any UAV.
+up-sampled again to imitate higher flight altitudes. Training images are split among
+the UAVs either uniformly (IID) or with Dirichlet($\alpha$) class proportions. In the
+controlled study of Chapter~\ref{ch:results}, 500 images (50 per class) are held out as
+the root set $\mathcal{D}_0$, which is assumed clean and never given to any UAV, and
+the remaining 49{,}500 are split among the UAVs. The earlier baseline experiments
+split all 50{,}000 images among the UAVs and used no root set.
 
-The classifier, TacticalEdgeCNN, is a small convolutional network with about 156k
-parameters and group normalization, chosen so that it could plausibly be trained on
-board. Group normalization is used instead of batch normalization because batch
-statistics do not average well across clients with different class mixes.
+The classifier, TacticalEdgeCNN, is a small convolutional network with three
+convolutional layers (16, 32 and 64 channels) and two fully connected layers,
+156{,}074 trainable parameters in total and no normalization layers, chosen so that it
+could plausibly be trained on board. Without normalization layers the whole model
+state consists of plain weights, which keeps averaging across UAVs straightforward.
 
 \section{Wireless Uplink Models}
 \label{sec:channel}
@@ -86,8 +90,10 @@ the swarm, and the SINR is
 \begin{equation}
   \gamma_k = P_{\mathrm{rx},k} - 10\log_{10}\bigl(N_0 + J_k\bigr),
 \end{equation}
-where $N_0$ corresponds to $-90$\,dBm and $J_k$ is the jamming power received at
-UAV $k$'s link (zero for UAVs outside the jammed sector).
+where $N_0$ ($-90$\,dBm) and the received jamming power $J_k$ (zero for UAVs outside
+the jammed sector) are added as linear powers in mW before conversion to dBm. This
+jammed channel is used only in the preliminary study; the controlled study of
+Chapter~\ref{ch:results} has no jammer.
 
 \subsection{Measured-Trace Channel}
 For realism we replay a measured UAV link from DeepSense~6G
@@ -99,14 +105,18 @@ variation relative to the median is used:
   \gamma_k = \bar\gamma + \bigl(P^{\mathrm{meas}}_k - \mathrm{med}\,P^{\mathrm{meas}}\bigr)
   - 10\eta\log_{10}\frac{d_{k,b}}{d_{k,1}},
 \end{equation}
-where $\bar\gamma$ is an assumed reference SNR and the last term adjusts the measured
-link to the distance of a virtual BS $b$. Each UAV replays a different flight
+where $P^{\mathrm{meas}}_k$ is the recorded beam power in dB on the dataset's
+arbitrary scale, $\bar\gamma$ is an assumed reference SNR, and the last term adjusts
+the measured link to the distance of a virtual BS $b$, with distances in metres so
+that their ratio is dimensionless. Each UAV replays a different flight
 segment. Two settings are used: $\bar\gamma=15$\,dB, a good link, and
 $\bar\gamma=5$\,dB, a weak link. They replay identical trajectories, so only the
 link quality differs.
 
 \subsection{Packet Erasures}
-In both models each packet is lost independently with probability
+In both models, conditional on the current link state, packets are lost
+independently; all $L$ parameters of a packet share one erasure. Each packet is lost
+with probability
 \begin{equation}
   p_k = \frac{1}{1+\exp\bigl(a(\gamma_k-\gamma_{\mathrm{th}})\bigr)},
 \end{equation}
@@ -139,16 +149,36 @@ All rules receive exactly the same inputs: the received updates, their masks, sa
 counts and telemetry (\texttt{fl/aggregators.py}).
 
 \subsection{Baselines}
+\label{sec:method-baselines}
 \textbf{FedAvg} \citep{mcmahan2017fedavg} averages the received updates weighted by
-$n_k$, with lost coordinates counted as zeros. \textbf{CosAvg}, the aggregation of the
-earlier UAV-FL work \citep{liao2023tee} as re-implemented here, weights each update by
+$n_k$, with lost coordinates counted as zeros. \textbf{CosAvg}, used only in the
+preliminary study, is a CosAvg-style baseline inspired by the earlier UAV-FL work of
+\citet{liao2023tee}: it weights each update by
 $\max(0,\cos(\boldsymbol\Delta_k,\bar{\boldsymbol\Delta}))\,n_k$, where
-$\bar{\boldsymbol\Delta}$ is the FedAvg mean. \textbf{Coordinate-wise
-median} \citep{yin2018median} takes the median of the delivered values of each
-parameter. \textbf{FLTrust} \citep{cao2021fltrust} computes a root update $\mathbf{r}$
-on $\mathcal{D}_0$ (with as many local steps as a typical UAV), weights each UAV by
-$\max(0,\cos)$ to $\mathbf{r}$ on delivered coordinates, and rescales each update to
-the norm of $\mathbf{r}$.
+$\bar{\boldsymbol\Delta}$ is the FedAvg mean. It is not an exact reproduction of that
+paper, whose Algorithm~2 sums pairwise cosine similarities and aggregates the
+top-ranked updates.
+
+\textbf{Coordinate-wise median} \citep{yin2018median} and \textbf{FLTrust}
+\citep{cao2021fltrust} were defined for complete update vectors; we adapt both to the
+packet masks. The median takes, for each parameter, the median of the delivered
+values only (the lower middle value when their number is even). FLTrust computes a
+root update $\mathbf{r}$ on $\mathcal{D}_0$ with as many local steps as the median
+UAV in the cell, weights each UAV by $\max(0,\cos)$ to $\mathbf{r}$ on its delivered
+coordinates, rescales the delivered part to the norm of $\mathbf{r}$ on the same
+coordinates, and averages each coordinate over the UAVs that delivered it. The
+root-set design is FLTrust's; the mask handling is our adaptation.
+
+\textbf{Base-paper erasure rules.} The base paper \citep{shirvanimoghaddam2022erroneous}
+models each upload as erased or received and compares two server rules: average only
+the fresh updates received in the round (its Eq.~(4)), or reuse the last local
+parameters received from a client whose fresh update is missing (its Eq.~(5)). We
+implement both at packet granularity, which lets them use every delivered packet:
+\emph{fresh-only} averages each coordinate over the UAVs that delivered it, weighted by
+$n_k$; \emph{reuse-old} fills each lost coordinate, and every coordinate of a fully
+erased upload, with the last parameter value received from that UAV, re-expressed
+against the current edge model. Neither rule defends against attackers, as the base
+paper assumes none.
 
 \subsection{Context-Calibrated Robust Aggregation (CCRA)}
 CCRA is the aggregator designed in this project. Each BS applies the following
@@ -160,15 +190,19 @@ steps every round.
   had similar cosine similarity to it.
 \item \textbf{Norm clipping.} Let $\rho_k$ be the RMS of the delivered entries of
   $\tilde{\boldsymbol\Delta}_k$ and scale the update by
-  $s_k=\min(1,\ \mathrm{med}_j\rho_j/\rho_k)$, which defeats scaling attacks.
+  $s_k=\min(1,\ \mathrm{med}_j\rho_j/\rho_k)$, with a small constant added to
+  $\rho_k$ so that a zero update is handled. This limits the effect of large-norm
+  updates.
 \item \textbf{Masked similarity.}
   $c_k=\cos\bigl(\mathcal{S}(s_k\tilde{\boldsymbol\Delta}_k;\mathbf{m}_k),\
   \mathcal{S}(\mathbf{r};\mathbf{m}_k)\bigr)$, where $\mathcal{S}(\cdot;\mathbf{m})$
-  keeps only the coordinates with $\mathbf{m}=1$. Lost packets therefore do not make
-  an honest update look dissimilar.
+  keeps only the coordinates with $\mathbf{m}=1$, and $c_k=0$ for an empty mask or a
+  zero vector. This removes the artifact of lost packets counted as zeros; it does not
+  guarantee that the missing coordinates never bias the comparison.
 \item \textbf{Behaviour score.} $b_k=\mathrm{clip}\bigl(c_k/\mathrm{med}_{j:c_j>0}c_j,\
-  0,\ 1\bigr)$. Updates pointing away from the reference get $b_k=0$.
-\item \textbf{Reputation.} With memory $\beta$, initial trust 1 and evidence
+  0,\ 1\bigr)$. Updates pointing away from the reference get $b_k=0$, and all scores
+  are 0 if no $c_j$ is positive.
+\item \textbf{Reputation.} With memory $\beta\in[0,1)$, initial trust 1 and evidence
   $e_k\in[0,1]$,
   \begin{equation}
     T_k \leftarrow T_k+\eta_k(b_k-T_k),\qquad
@@ -179,7 +213,8 @@ steps every round.
   packets; only rewards are slowed on poor links.
 \item \textbf{Gating and averaging.} UAVs with $T_k<\tau$ are excluded. The others get
   weight $\omega_k=n_kT_k$, discounted for staleness, and each coordinate is averaged
-  only over the UAVs that delivered it:
+  only over the UAVs that delivered it (a coordinate with no accepted weight gets a
+  zero update):
   \begin{equation}
     \mathrm{Agg}_p=\frac{\sum_k\omega_k\,m_{k,p}\,s_k\tilde\Delta_{k,p}}
                       {\sum_k\omega_k\,m_{k,p}}.
@@ -191,8 +226,9 @@ The evidence term multiplies five link factors:
   e_k=\mathrm{PDR}_k\cdot R_k\cdot h_k\cdot\frac{1}{1+d_k/A}\cdot\frac{1}{1+|v_k|},
 \end{equation}
 namely the packet delivery ratio, long-run reliability, a handover factor
-($h_k=0.5$ during a handover, 1 otherwise), a distance factor with $A$ the area size,
-and a normalized-speed factor.
+($h_k=0.5$ during a handover, 1 otherwise), a distance factor with $d_k$ the
+UAV--BS distance and $A=800$\,m the configured side length of the area, and a factor
+in the dimensionless normalized speed $|v_k|$.
 
 \subsection{Ablation Variants}
 To find out which part of CCRA matters, three variants are compared.
@@ -203,6 +239,8 @@ To find out which part of CCRA matters, three variants are compared.
   coordinates enter the computation as zeros, as a channel-unaware server would see
   them.
 \end{itemize}
+Server-side deadline handling and staleness treatment are shared by all variants; only
+the mechanisms listed above are ablated, so no-context is not a channel-free system.
 The code also has an option to correct $c_k$ for the noise expected at the
 reported SINR. It is inactive in the controlled study, which adds no residual noise
 to delivered parameters, so the full-versus-mask-only contrast isolates $e_k$.
@@ -210,35 +248,50 @@ to delivered parameters, so the full-versus-mask-only contrast isolates $e_k$.
 \subsection{Analysis of the Reputation Update}
 \label{sec:fixed-point}
 The asymmetric update~\eqref{eq:reputation} has a consequence that was not intended.
-Suppose a UAV's evidence is constant, $e_k=e$, and its scores $b$ are drawn
-independently from some distribution. The expected change in reputation is
+Suppose a UAV's evidence is constant, $e_k=e\in(0,1]$, its scores $b\in[0,1]$ are
+i.i.d.\ and independent of its current reputation, with $0<\mathbb{E}[b]<1$, and
+$0\le\beta<1$. Conditional on the current level $T$, the expected change in reputation
+is
 \begin{equation}
-  \mathbb{E}[\Delta T] = (1-\beta)\Bigl(e\,\mathbb{E}\bigl[(b-T)^+\bigr]
-                        - \mathbb{E}\bigl[(T-b)^+\bigr]\Bigr),
+  \mathbb{E}[\Delta T\mid T] = (1-\beta)\,g_e(T),\qquad
+  g_e(T)=e\,\mathbb{E}\bigl[(b-T)^+\bigr]-\mathbb{E}\bigl[(T-b)^+\bigr],
 \end{equation}
-so the reputation settles where
+so the drift vanishes where
 \begin{equation}
   e\,\mathbb{E}\bigl[(b-T^\star)^+\bigr] = \mathbb{E}\bigl[(T^\star-b)^+\bigr].
   \label{eq:fixed-point}
 \end{equation}
-This steady state is characterized as follows.
+This balance is an expectile condition \citep{newey1987expectile}: dividing by $1+e$
+gives $q\,\mathbb{E}[(b-T^\star)^+]=(1-q)\,\mathbb{E}[(T^\star-b)^+]$ with
+$q=e/(1+e)$, the first-order condition that defines the $q$-expectile of $b$. Our
+contribution is to apply this relationship to the reputation rule.
 
-\noindent\textbf{Proposition 3.1.} Let $b\in[0,1]$ be i.i.d.\ with $\mathbb{E}[b]>0$ and let
-$g_e(T)=e\,\mathbb{E}[(b-T)^+]-\mathbb{E}[(T-b)^+]$. For every $e\in(0,1]$, $g_e$ has a
-unique root $T^\star(e)\in(0,1)$. Moreover $T^\star(1)=\mathbb{E}[b]$, $T^\star(e)$ is
-increasing in $e$, and $T^\star(e)\to\operatorname{ess\,inf} b$ as $e\to0$.
+\noindent\textbf{Proposition 3.1.} Under the assumptions above, $g_e$ has a unique
+zero $T^\star(e)\in(0,1)$, the $q$-expectile of $b$ with $q=e/(1+e)$. It equals
+$\mathbb{E}[b]$ when $e=1$, is nondecreasing in $e$, and tends to
+$\operatorname{ess\,inf} b$ as $e$ decreases to zero.
 
-\noindent\textit{Proof.} $g_e$ is continuous and strictly decreasing in $T$, with
-$g_e(0)=e\,\mathbb{E}[b]>0$ and $g_e(1)=-\mathbb{E}[1-b]<0$, so it has exactly one root
-in $(0,1)$. For $e=1$, $g_1(T)=\mathbb{E}[b]-T$. Because
-$\partial g_e/\partial e=\mathbb{E}[(b-T)^+]\ge0$ while $g_e$ decreases in $T$, the root
-rises with $e$. Finally, as $e\to0$, $g_e(T)\to-\mathbb{E}[(T-b)^+]$, which is negative
-for every $T>\operatorname{ess\,inf}b$, while $g_e(T)>0$ for every
-$T<\operatorname{ess\,inf}b$. \hfill$\blacksquare$
+\noindent\textit{Proof.} $g_e$ is continuous with $g_e(0)=e\,\mathbb{E}[b]>0$ and
+$g_e(1)=-\mathbb{E}[1-b]<0$, so a zero exists in $(0,1)$. For $T_2>T_1$, the change
+$g_e(T_2)-g_e(T_1)$ lies between $-(T_2-T_1)$ and $-e(T_2-T_1)$, so $g_e$ is strictly
+decreasing and the zero is unique. For $e=1$, $g_1(T)=\mathbb{E}[b]-T$. Increasing $e$
+weakly increases $g_e(T)$ for every $T$, so it cannot lower the zero. For
+$T<\operatorname{ess\,inf}b$, the downward term vanishes and $g_e(T)>0$, so the zero
+is at least $\operatorname{ess\,inf}b$. For any larger $T$, the downward term
+$\mathbb{E}[(T-b)^+]$ is strictly positive while the upward term
+$e\,\mathbb{E}[(b-T)^+]$ vanishes as $e\to0$, so the limiting zero cannot exceed
+$\operatorname{ess\,inf}b$. \hfill$\blacksquare$
 
-In words: with full evidence the reputation settles at the mean score; as the
-evidence falls, it moves down towards the lowest score the UAV ever receives.
-An honest UAV with skewed data has noisy scores, so on a weak link its reputation
-tracks its worst rounds and falls below the gate $\tau$ more often. An attacker's
-scores are already near zero, so slowing its rewards adds little. Section~\ref{sec:mechanism}
-tests this prediction against the measured gate decisions.
+$T^\star$ is the equilibrium of the conditional drift, not a statement that the
+reputation converges almost surely: with a constant step ($\beta=0.5$) and random
+scores it keeps fluctuating, and in general $\mathbb{E}[g_e(T)]\neq g_e(\mathbb{E}[T])$.
+In the simulator the evidence also changes over time, and scores depend on training,
+on the other UAVs and on the median normalization, so the constant-evidence, i.i.d.\
+assumptions are an explanatory approximation. Under that approximation, weakening the
+evidence lowers the equilibrium from the mean score toward the lower end of the score
+distribution. A finite weak evidence does not put it at the lowest score; that is
+only the limit as $e\to0$. An honest UAV with skewed data has noisy scores, so on a
+weak link this suggests a mechanism by which its trust recovers more slowly and falls
+below the gate $\tau$ more often. An attacker's scores are already near zero, so
+slowing its rewards adds little. Section~\ref{sec:mechanism} checks whether the
+measured gate decisions are consistent with this mechanism.

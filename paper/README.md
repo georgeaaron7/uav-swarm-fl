@@ -36,6 +36,9 @@ does not.
 
 ## Before submission
 
-- Replace the placeholder author names and confirm the affiliation.
+- Authors are filled in; confirm the affiliation and author order with the guide.
 - The comparison of mask-only against FLTrust is exploratory (not prespecified);
   keep it labeled that way.
+- Add the base paper's two rules (`bp_fresh`, `bp_reuse`) to Fig. 2 once the
+  240-run comparison has finished. Page 4 is full, so extend that figure rather than
+  adding a new one.

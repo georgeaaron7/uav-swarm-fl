@@ -32,10 +32,12 @@ The default compiler (pdfLaTeX) and BibTeX work without changes.
 
 ## Before submission
 
-- Fill in the remaining placeholders in `info.tex`: the HOD's name, and confirm the
-  roll numbers and the guide's title.
-- The certificate is meant to be printed on departmental letterhead.
+- Confirm the guide's and HOD's titles in `info.tex` (Dr./Prof. are assumed).
+- The certificate is meant to be printed on departmental letterhead; fill the
+  examination date only when it is known. Keep the template's certificate wording if
+  the institute requires it.
 - Check the plagiarism score. The report is written separately from the paper, but
   both describe the same study.
-- Confirm the literature-review entries for the IEEE letters against their full texts.
-  Table 2.1's caption says these entries still need checking.
+- The cited IEEE letters were checked against their full texts on 2026-11-03/04.
+- Section 4.2.3 says the base-paper comparison runs are pending; update it, and add
+  their results to Chapter 4, when they finish.
