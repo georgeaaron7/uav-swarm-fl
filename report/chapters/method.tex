@@ -127,6 +127,41 @@ where the mask $\mathbf{m}_k$ is 1 for delivered coordinates and 0 elsewhere. Th
 also records link telemetry for each UAV: SNR, packet delivery ratio (PDR), long-run
 reliability, distance, speed and handover state.
 
+\subsubsection{Choice of the packet-error curve}
+The base paper \citep{shirvanimoghaddam2022erroneous} models packet errors with the
+normal approximation for finite-length codes: a $k$-bit packet sent in $n$ channel
+uses at SNR $\gamma$ is lost with probability
+\begin{equation}
+  p = Q\!\left(\frac{n\log_2(1+\gamma)-k+\log_2 n}{\sqrt{n\,V(\gamma)}}\right),\qquad
+  V(\gamma)=\bigl(1-(1+\gamma)^{-2}\bigr)\log_2^2 e .
+  \label{eq:normal-approx}
+\end{equation}
+Our packets carry $L=1024$ parameters of 32 bits, so $k=\PerBits$. Choosing the code
+rate whose capacity threshold is $\gamma_{\mathrm{th}}=3$\,dB, $R=\log_2(1+10^{0.3})
+=\PerRate$ bits per channel use ($n\approx\PerUses$), places the 50\% point of
+\eqref{eq:normal-approx} at 3\,dB, the midpoint of our logistic curve. For a single
+codeword of this length, however, \eqref{eq:normal-approx} is a waterfall: the packet
+error rate falls from 90\% to 10\% within \PerWaterfall\,dB. The SNR replayed from
+the trace is one sample per round, while the real SNR varies during a round. If that
+variation is modelled as a Gaussian spread in dB and \eqref{eq:normal-approx} is
+averaged over it, a spread of \PerSpread\,dB reproduces the logistic curve with
+$a=1$ to within \PerMaxGap{} percentage point of packet error rate at every SNR
+(Fig.~\ref{fig:per-curve}). The logistic curve is therefore the base paper's model
+with unresolved within-round SNR variation averaged in. The spread is a fitted
+modelling assumption, not a measured value, and because the 5 and 15\,dB anchors
+are also assumed, the results are best read against the delivery ratios they produce
+(Section~\ref{sec:controlled}). Phase~II will use \eqref{eq:normal-approx} directly,
+with the SNR variation taken from the trace.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.62\textwidth]{per_curve.pdf}
+\caption{Packet error rate against SNR: the base paper's normal approximation for a
+\PerBits-bit packet at rate \PerRate{} bits per channel use, the same curve averaged
+over a \PerSpread\,dB Gaussian SNR spread, and the logistic curve used in this work.}
+\label{fig:per-curve}
+\end{figure}
+
 \section{Threat Model}
 A fixed set of $f=3$ of the $K=10$ UAVs is Byzantine. They follow the protocol (they
 train, transmit on time and use the same channel) but replace their update with one

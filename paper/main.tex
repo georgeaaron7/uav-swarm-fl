@@ -14,6 +14,7 @@
 
 \input{generated/numbers}
 \input{generated/base_paper_numbers}
+\input{generated/channel_numbers}
 \newcommand{\pp}{\,pp}
 \newcommand{\ci}[2]{$[#1,\,#2]$}
 
@@ -147,7 +148,11 @@ packet sharing one erasure, with probability
 \begin{equation}
   p_k^t = \bigl(1+\exp\bigl(a(\gamma_k^t-\gamma_{\mathrm{th}})\bigr)\bigr)^{-1},
 \end{equation}
-and an update that misses the round deadline is dropped. The BS therefore observes
+and an update that misses the round deadline is dropped. This curve is the base
+paper's normal-approximation error rate~\cite{shirvanimoghaddam2022erroneous} for
+\PerBits-bit packets at \PerRate{} bits per channel use (50\% loss at 3\,dB), averaged
+over a fitted \PerSpread\,dB within-round SNR spread: the two agree within
+\PerMaxGap\pp{} at every SNR. The BS therefore observes
 $\tilde{\boldsymbol\Delta}_k=\mathbf{m}_k\odot\boldsymbol\Delta_k$, where
 $\mathbf{m}_k\in\{0,1\}^P$ marks delivered coordinates. Association uses a
 hysteresis-and-time-to-trigger handover rule on received power. There is no jammer
@@ -202,9 +207,8 @@ is averaged only over the UAVs that delivered it, and is zero if none did:
 \emph{Variants.} \textbf{CCRA (full)} uses all steps with telemetry evidence $e_k$.
 \textbf{Mask-only} sets $e_k=1$ but keeps the masks. \textbf{No-context} additionally sets
 $\mathbf{m}_k=\mathbf{1}$, so lost packets enter steps 1--5 as zeros, which is how a
-channel-unaware server sees them. Deadline handling is shared by all variants, and the
-SINR calibration of $c_k$ in our code is inactive here because there is no parameter
-noise, so the full-versus-mask-only contrast isolates $e_k$.
+channel-unaware server sees them. With no parameter noise, the code's SINR
+calibration of $c_k$ is inactive, so full versus mask-only isolates $e_k$.
 
 \section{Equilibrium Analysis of the Reputation}
 \label{sec:analysis}
@@ -235,8 +239,7 @@ condition. \hfill$\blacksquare$
 
 $T^\star$ is the zero of the conditional drift, not an almost-sure limit: with
 $\beta=0.5$ the reputation keeps fluctuating, and in the simulator $e_k$ and $b_k$
-vary over time and depend on other UAVs through the median normalization. Under this
-approximation, weaker evidence moves the equilibrium from the mean score toward the
+vary over time. Under this approximation, weaker evidence moves the equilibrium from the mean score toward the
 lower tail of the score distribution. The asymmetry meant to stop packet-dropping
 attackers can therefore lower the trust of an honest UAV with non-IID data on a weak
 link, so that it falls below $\tau$ more often, while an attacker whose scores are
