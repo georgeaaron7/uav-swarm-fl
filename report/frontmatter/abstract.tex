@@ -21,8 +21,8 @@ inner-product-manipulation attacks. We designed CCRA, a reputation-based aggrega
 that compares each update with a reference computed on a small root dataset and can
 use the channel in two ways: by ignoring lost coordinates (erasure masking) and by
 letting link telemetry slow how fast a UAV regains trust. The base paper's two
-erasure rules, fresh-only averaging and reuse of old updates, are also implemented
-for a direct comparison.
+erasure rules, fresh-only averaging and reuse of old updates, are evaluated in a
+separate \BpNumRuns-run follow-up.
 
 A FedAvg baseline reached 62.6\% (IID) and 60.2\% (non-IID) accuracy, and a
 preliminary single-seed study looked promising for CCRA. To find which part of CCRA
@@ -39,10 +39,17 @@ reputation of an honest UAV on a weak link moves toward the lower tail of its sc
 None of the four root-referenced aggregators diverged, whereas FedAvg and the median
 diverged in \DivFedavg{} and \DivMedian{} of their 120 runs.
 
+The follow-up found a \BpCleanGain-point advantage for fresh-only over reuse-old on
+clean stressed links (\ci{\BpCleanLo}{\BpCleanHi}). Its rules diverged in
+\BpDivFresh/120 and \BpDivReuse/120 runs; all sign-flip runs diverged. These are
+packet-level adaptations evaluated on Windows GPU workers, separate from the A100
+ablation and the original paper's honest-client theory.
+
 The useful channel-aware component is therefore erasure masking, and the reward rule
-must be redesigned before telemetry can help. The results are written up as a
-four-page IEEE letter. Phase~II will complete the base-paper comparison, revise the
-reward rule and test it on fresh seeds, higher-mobility traces and adaptive attackers.
+must be redesigned before telemetry can help. The results are written up as an
+IEEE letter. Phase~II will revise the reward rule and test it on fresh seeds,
+higher-mobility traces and adaptive attackers, including hardware-controlled
+confirmation of the follow-up contrasts.
 
 \textbf{Index Terms :} Federated learning, UAV swarm, Byzantine robustness,
 packet erasure, hierarchical aggregation, reputation.

@@ -39,5 +39,8 @@ The default compiler (pdfLaTeX) and BibTeX work without changes.
 - Check the plagiarism score. The report is written separately from the paper, but
   both describe the same study.
 - The cited IEEE letters were checked against their full texts on 2026-11-03/04.
-- Section 4.2.3 says the base-paper comparison runs are pending; update it, and add
-  their results to Chapter 4, when they finish.
+- The separate [240-run base-paper comparison](../results/base_paper_comparison/README.md)
+  is complete and included in Chapter 4, the abstract and conclusions. All 83
+  numerical divergences remain in the analysis. Follow-up confidence intervals
+  use ten seed pairs and are exploratory; cross-study GPU/software differences
+  are disclosed.

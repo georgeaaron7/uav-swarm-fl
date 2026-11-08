@@ -4,13 +4,14 @@
 This chapter describes how the framework was implemented and verified, the
 protocol of each experiment, and the results, in the order the work was done: the
 FedAvg baseline, the preliminary single-seed study, and the controlled
-\NumRuns-run study. Every number in Section~\ref{sec:controlled} is generated from
-the committed run-level data by the script described in Appendix~B.
+\NumRuns-run study, followed by a separate \BpNumRuns-run base-paper comparison.
+Result tables and figures are generated from committed run-level data by the
+scripts described in Appendix~B.
 
 \section{Implementation and Verification}
 The framework is written in Python with PyTorch. Runs are configured by a single
 dataclass, and every run stores its full configuration, per-round history and final
-model. The repository contains 46 automated tests covering data partitioning, the
+model. Automated tests cover data partitioning, the
 FedAvg update, attack construction, every robust aggregator, the base paper's two
 erasure rules, the hierarchical server, handover logic, trace loading and the
 analysis code. A code review of the
@@ -60,9 +61,19 @@ The base paper's two erasure rules (Section~\ref{sec:method-baselines}), fresh-o
 and reuse-old, are run as a separate comparison on the same seeds, attacker
 identities, channel conditions and attack settings as the controlled study:
 $2\times4\times3\times10=240$ runs. They are not added to the prespecified matrix, and
-no parameter is tuned on its seeds. The rules are implemented and tested; at the
-time of writing the 240 runs are pending, because the trace-driven conditions need
-the prepared DeepSense data and a GPU.
+no parameter is tuned on its seeds. All \BpNumRuns{} runs are now complete and
+validated. Both rules use the same 49{,}500 client images and reserve the same
+disjoint 500 root images, although neither uses a trusted reference update.
+
+The follow-up was executed through SwarmCompute on Windows NVIDIA workers. Final
+attempts used an RTX~2060 for 238 runs and a GTX~1650 for two; 57 final attempts
+resumed from centrally validated checkpoints. Configurations, source and dataset
+fingerprints, terminal records and all 120 within-study scientific pairs were
+checked. Runtime profiles and artifact checksums are retained with the compact
+results. Hardware and software versions differ from the A100 ablation, so
+cross-study rankings are descriptive. The paired fresh-only versus reuse-old
+intervals resample the ten seed pairs within this follow-up; they do not make the
+two studies a single prespecified experiment.
 
 \section{FedAvg Baseline Results}
 The first objective was a working FL pipeline without any defence. Ten UAVs trained
@@ -74,6 +85,7 @@ Table~\ref{tab:baseline} and Fig.~\ref{fig:baseline} show the result.
 \centering
 \caption{FedAvg baseline accuracy after 50 rounds}
 \label{tab:baseline}
+\small
 \begin{tabular}{@{}lcc@{}}
 \toprule
 Data partition & Final test accuracy (\%) & Best test accuracy (\%) \\
@@ -174,7 +186,8 @@ under attack across the three channel conditions.
 \centering
 \includegraphics[width=0.75\textwidth]{accuracy_vs_channel.pdf}
 \caption{Final accuracy under attack (mean over sign flip, ALIE and IPM and
-\NumSeeds{} seeds). Error bars: 95\% paired-seed bootstrap intervals.}
+\NumSeeds{} seeds). Error bars: 95\% seed-bootstrap intervals. Dashed, starred rules
+are from the separate \BpNumRuns-run follow-up; cross-study rankings are descriptive.}
 \label{fig:acc}
 \end{figure}
 
@@ -270,6 +283,56 @@ neither a difference nor practical equivalence, since it is not entirely inside
 $\pm1$ point. One reading consistent with the mechanism above is that reputation
 memory helps on good links and stops helping on weak ones.
 
+\section{Completed Base-Paper Comparison}
+\label{sec:bp-results}
+The \BpNumRuns{} terminal outcomes comprise 157 successful runs and 83 numerical
+divergences. Fresh-only diverged in \BpDivFresh{} of 120 runs, and reuse-old in
+\BpDivReuse{} of 120. All 60 sign-flip runs diverged; the remaining 23 divergences
+occurred under IPM. No clean or ALIE run diverged. These outcomes are retained at
+10\% final accuracy, rather than excluded or retried into successful runs.
+All-run accuracy is \BpAllFresh\% for fresh-only and \BpAllReuse\% for reuse-old.
+
+\begin{table}[ht]
+\centering
+\caption{Separate base-paper follow-up: ten paired seeds per cell. Final accuracy
+includes numerical divergences at chance (10\%). Intervals are exploratory paired
+seed-bootstrap intervals, with no multiplicity adjustment.}
+\label{tab:bp-results}
+\small
+\input{generated/table_base_paper}
+\end{table}
+
+Table~\ref{tab:bp-results} shows identical mean accuracy on the clean ideal channel,
+where there are no missing packets to reuse. On clean stressed links, fresh-only
+attains \BpCleanStressFresh\% versus \BpCleanStressReuse\% for reuse-old: a gain of
+\BpCleanGain{} percentage points (95\% CI \ci{\BpCleanLo}{\BpCleanHi}). Under attack
+at 5\,dB, the chance-scored means are \BpAttackStressFresh\% and
+\BpAttackStressReuse\%, respectively, a gain of \BpAttackGain{} points
+(\ci{\BpAttackLo}{\BpAttackHi}). The interval describes a mean over the three
+attacks within each seed, not 30 independent replicates.
+
+Retaining old parameters does not improve this finite-horizon stressed-channel
+experiment, and neither rule provides Byzantine robustness. This is compatible with
+the scope of \citet{shirvanimoghaddam2022erroneous}: its analysis assumes honest
+clients and whole-upload erasures, whereas the present implementation uses packet
+erasures in a hierarchical non-IID CNN task with adversarial updates. These results
+are an adaptation study, not an exact reproduction or a refutation of the original
+convergence theorem.
+
+Figure~\ref{fig:acc} now includes both rules alongside the original six methods.
+The original ablation's findings about masking and telemetry are unchanged.
+Different GPUs, software versions, training-source fingerprints and recovery paths
+limit a causal interpretation of cross-study differences; only the within-follow-up
+fresh-only versus reuse-old contrasts are paired here.
+
+Operational interruptions were kept separate from numerical divergence. Clean
+checkpointed stops that had been mislabeled as application failures were requeued
+after checkpoint verification; Windows progress-file permission failures received
+bounded retries with unchanged scientific configurations. Failed attempts remain in
+the coordinator audit history. The final validation contains one accepted terminal
+result per planned job, with no missing jobs. Recovery preserves saved state and
+random generators but does not establish bitwise reproducibility across GPUs.
+
 \section{Discussion}
 \subsection{What the Results Show}
 \begin{enumerate}
@@ -284,6 +347,9 @@ memory helps on good links and stops helping on weak ones.
   analysis of Section~\ref{sec:fixed-point} suggests a structural reason: an
   asymmetric reputation update can bias trust downwards for the UAVs it was meant to
   protect.
+\item The separate base-paper comparison shows that fresh-only averaging can exceed
+  reuse-old under stressed packet loss. Both erasure rules diverged under sign flip,
+  illustrating why erasure handling alone is insufficient for this threat model.
 \end{enumerate}
 
 \subsection{Why a Negative Result Is Useful}
@@ -308,4 +374,8 @@ change.
 \item \textbf{Statistics.} Ten seeds give approximate intervals; secondary contrasts
   are not adjusted for multiple comparisons. Any revised rule must be tested on new
   seeds, not re-tuned on these ten.
+\item \textbf{Execution environment.} The A100 ablation and Windows-worker follow-up
+  used different GPU/software profiles and source fingerprints. Checkpoint recovery
+  was verified, but hardware-controlled cross-study effects and runtime speedups
+  were not measured.
 \end{itemize}

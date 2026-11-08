@@ -1,0 +1,30 @@
+{
+  "checksums_csv_sha256": "5e75142b6f48661c71a75d4ebbda69760efb20e44ecfa924abcb02c4b9ed4bbf",
+  "client_images": 49500,
+  "export_manifest_sha256": "8aae24d3a111c9485d5afd3ce6ce4b217681e70e399fcd1d19acf5b9e2b410ea",
+  "missing_jobs": [],
+  "paired_partition_summaries": 120,
+  "reserved_root_images": 500,
+  "resumed_final_attempts": 57,
+  "runtime_profiles": [
+    {
+      "final_attempts": 2,
+      "gpu": "NVIDIA GeForce GTX 1650",
+      "numpy": "2.4.6",
+      "python": "3.11.3",
+      "torch": "2.14.1+cu126"
+    },
+    {
+      "final_attempts": 238,
+      "gpu": "NVIDIA GeForce RTX 2060",
+      "numpy": "2.5.4",
+      "python": "3.14.10",
+      "torch": "2.15.0+cu134"
+    }
+  ],
+  "scientific_pairs": 120,
+  "scope": "Terminal records, exact frozen configurations, model presence, source/data fingerprints, root reserve and paired scientific inputs checked against the completed export. The coordinator separately validated all 240 result archives before export. Runtime profiles describe final attempts; resumed work may span earlier attempts.",
+  "source_sha256": "75c376ea0bb754a2063e3d4d9700a3552067216f1b9f7a4ad16fc214d63a7432",
+  "terminal_runs": 240,
+  "valid": true
+}
