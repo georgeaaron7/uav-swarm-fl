@@ -1,0 +1,218 @@
+{
+  "chance_accuracy": 0.1,
+  "estimates": [
+    {
+      "accuracy_pct": {
+        "bp_fresh": 59.013,
+        "bp_reuse": 59.013
+      },
+      "ci95_pp": [
+        0.0,
+        0.0
+      ],
+      "comparison": "bp_fresh_minus_bp_reuse",
+      "mean_pp": 0.0,
+      "n_seeds": 10,
+      "scope": "clean_hfl_ideal"
+    },
+    {
+      "accuracy_pct": {
+        "bp_fresh": 59.443999999999996,
+        "bp_reuse": 59.404999999999994
+      },
+      "ci95_pp": [
+        -0.1740249999999985,
+        0.25000000000000133
+      ],
+      "comparison": "bp_fresh_minus_bp_reuse",
+      "mean_pp": 0.039000000000001256,
+      "n_seeds": 10,
+      "scope": "clean_hfl_trace"
+    },
+    {
+      "accuracy_pct": {
+        "bp_fresh": 56.862,
+        "bp_reuse": 51.470000000000006
+      },
+      "ci95_pp": [
+        4.107000000000001,
+        6.741024999999999
+      ],
+      "comparison": "bp_fresh_minus_bp_reuse",
+      "mean_pp": 5.392,
+      "n_seeds": 10,
+      "scope": "clean_hfl_trace_stress"
+    },
+    {
+      "accuracy_pct": {
+        "bp_fresh": 10.0,
+        "bp_reuse": 10.0
+      },
+      "ci95_pp": [
+        0.0,
+        0.0
+      ],
+      "comparison": "bp_fresh_minus_bp_reuse",
+      "mean_pp": 0.0,
+      "n_seeds": 10,
+      "scope": "sign_flip_hfl_ideal"
+    },
+    {
+      "accuracy_pct": {
+        "bp_fresh": 10.0,
+        "bp_reuse": 10.0
+      },
+      "ci95_pp": [
+        0.0,
+        0.0
+      ],
+      "comparison": "bp_fresh_minus_bp_reuse",
+      "mean_pp": 0.0,
+      "n_seeds": 10,
+      "scope": "sign_flip_hfl_trace"
+    },
+    {
+      "accuracy_pct": {
+        "bp_fresh": 10.0,
+        "bp_reuse": 10.0
+      },
+      "ci95_pp": [
+        0.0,
+        0.0
+      ],
+      "comparison": "bp_fresh_minus_bp_reuse",
+      "mean_pp": 0.0,
+      "n_seeds": 10,
+      "scope": "sign_flip_hfl_trace_stress"
+    },
+    {
+      "accuracy_pct": {
+        "bp_fresh": 49.711999999999996,
+        "bp_reuse": 49.54
+      },
+      "ci95_pp": [
+        -0.033000000000000265,
+        0.3499999999999976
+      ],
+      "comparison": "bp_fresh_minus_bp_reuse",
+      "mean_pp": 0.17199999999999993,
+      "n_seeds": 10,
+      "scope": "alie_hfl_ideal"
+    },
+    {
+      "accuracy_pct": {
+        "bp_fresh": 47.209,
+        "bp_reuse": 47.179
+      },
+      "ci95_pp": [
+        -0.3419999999999984,
+        0.3299999999999992
+      ],
+      "comparison": "bp_fresh_minus_bp_reuse",
+      "mean_pp": 0.030000000000000023,
+      "n_seeds": 10,
+      "scope": "alie_hfl_trace"
+    },
+    {
+      "accuracy_pct": {
+        "bp_fresh": 43.337,
+        "bp_reuse": 39.835
+      },
+      "ci95_pp": [
+        0.5349250000000011,
+        6.528999999999999
+      ],
+      "comparison": "bp_fresh_minus_bp_reuse",
+      "mean_pp": 3.502,
+      "n_seeds": 10,
+      "scope": "alie_hfl_trace_stress"
+    },
+    {
+      "accuracy_pct": {
+        "bp_fresh": 26.913,
+        "bp_reuse": 26.947000000000003
+      },
+      "ci95_pp": [
+        -0.10402500000000459,
+        0.0359999999999977
+      ],
+      "comparison": "bp_fresh_minus_bp_reuse",
+      "mean_pp": -0.03400000000000181,
+      "n_seeds": 10,
+      "scope": "ipm_hfl_ideal"
+    },
+    {
+      "accuracy_pct": {
+        "bp_fresh": 42.903000000000006,
+        "bp_reuse": 42.906000000000006
+      },
+      "ci95_pp": [
+        -0.12200000000000158,
+        0.1549999999999968
+      ],
+      "comparison": "bp_fresh_minus_bp_reuse",
+      "mean_pp": -0.003000000000002445,
+      "n_seeds": 10,
+      "scope": "ipm_hfl_trace"
+    },
+    {
+      "accuracy_pct": {
+        "bp_fresh": 37.492000000000004,
+        "bp_reuse": 30.782
+      },
+      "ci95_pp": [
+        1.3849500000000012,
+        14.965274999999997
+      ],
+      "comparison": "bp_fresh_minus_bp_reuse",
+      "mean_pp": 6.710000000000002,
+      "n_seeds": 10,
+      "scope": "ipm_hfl_trace_stress"
+    },
+    {
+      "accuracy_pct": {
+        "bp_fresh": 30.84066666666667,
+        "bp_reuse": 29.687666666666665
+      },
+      "ci95_pp": [
+        0.29776388888888866,
+        2.261797222222221
+      ],
+      "comparison": "bp_fresh_minus_bp_reuse",
+      "mean_pp": 1.1529999999999996,
+      "n_seeds": 10,
+      "scope": "attacked_suite"
+    },
+    {
+      "accuracy_pct": {
+        "bp_fresh": 30.276333333333334,
+        "bp_reuse": 26.872333333333337
+      },
+      "ci95_pp": [
+        0.9429666666666673,
+        6.601049999999999
+      ],
+      "comparison": "bp_fresh_minus_bp_reuse",
+      "mean_pp": 3.404,
+      "n_seeds": 10,
+      "scope": "attacked_stress"
+    }
+  ],
+  "interpretation": "Separate exploratory follow-up; 10,000 percentile bootstrap resamples of paired seeds, RNG seed 501927; attack cells averaged within seed; no multiplicity adjustment. Numerical divergence contributes 10% final accuracy, never an excluded run. This comparison was not part of the prespecified 720-run ablation.",
+  "outcomes": {
+    "bp_fresh": {
+      "all_run_final_accuracy_pct": 37.74041666666667,
+      "diverged": 41,
+      "runs": 120,
+      "succeeded": 79
+    },
+    "bp_reuse": {
+      "all_run_final_accuracy_pct": 36.42308333333334,
+      "diverged": 42,
+      "runs": 120,
+      "succeeded": 78
+    }
+  },
+  "planned_runs": 240,
+  "terminal_runs": 240
+}

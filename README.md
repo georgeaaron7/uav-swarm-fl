@@ -26,9 +26,15 @@ a four-page IEEE letter: [`paper/main.pdf`](paper/main.pdf) ([source and build n
   runs.
 - **Base paper.** The IEEE base paper is Shirvanimoghaddam et al., "Federated Learning
   With Erroneous Communication Links", IEEE Commun. Lett. 26(6), 2022. Its two server
-  rules (fresh-only and reuse-old) are implemented as `bp_fresh` and `bp_reuse`; the
-  240-run comparison on the same seeds and channels is pending (see
-  [Base-paper comparison](#base-paper-comparison)).
+  rules (fresh-only and reuse-old) now have a separate, completed
+  [240-run comparison](results/base_paper_comparison/README.md): 157 successful
+  runs and 83 numerical divergences. Under attack at 5 dB, mask-only CCRA is
+  +19.2 pp more accurate than the better base-paper rule, fresh-only (49.5% vs
+  30.3%; paired-seed CI [+15.9, +23.0]). Without attack it is 2.1 pp behind
+  (54.7% vs 56.9%; CI [−2.9, −1.4]), the cost of robustness. On clean stressed links,
+  fresh-only gains +5.39 pp over reuse-old (CI [+4.11, +6.74]). On the ideal channel,
+  where fresh-only equals FedAvg, the GPU follow-up matches the A100 study within
+  1.1 pp per run.
 
 | Accuracy under attack vs channel | Ablation contrasts | Reputation-gate decisions at 5 dB |
 |---|---|---|
@@ -51,11 +57,27 @@ received and compares two server rules, both implemented in `fl/aggregators.py`:
 | `bp_fresh` | Eq. (4): average only the fresh updates received | Average each coordinate over the UAVs that delivered it, weighted by sample count |
 | `bp_reuse` | Eq. (5): reuse a device's last received parameters when its update is missing | Fill each lost coordinate, and every coordinate of a fully erased upload, with the last parameter value received from that UAV |
 
-Neither rule defends against attackers, because the base paper assumes none. They run
-as a separate study on the same seeds, attackers, channels and attacks as the
-720-run study (2 × 4 × 3 × 10 = 240 runs). The trace conditions need
-`data/channel_traces/deepsense23.npz`; on a CPU one 100-round run takes about
-20–25 minutes, so a GPU is recommended:
+Neither rule defends against attackers, because the base paper assumes none. Their
+separate follow-up on the same design cells is **complete** (2 × 4 × 3 × 10 = 240
+runs): fresh-only diverged in 41/120 and reuse-old in 42/120 runs. All 60 sign-flip
+runs diverged. Divergence is retained at 10% chance accuracy; it is never discarded.
+Clean 5 dB accuracy is 56.86% versus 51.47%, a paired +5.39 pp difference
+(95% CI [+4.11, +6.74]). These exploratory intervals resample ten seeds, not rounds
+or attack cells. The follow-up used Windows GTX 1650/RTX 2060 workers; comparisons
+against the original A100 study are descriptive because hardware, software and
+training-source fingerprints differ.
+
+The [findings, compact evidence and provenance](results/base_paper_comparison/README.md)
+are committed. Rebuild the follow-up estimates and both documents' assets without
+training or access to private datasets:
+
+```bash
+python scripts/analyze_base_paper.py --csv results/base_paper_comparison/base_paper_runs.csv
+python scripts/make_paper_figures.py
+```
+
+For a new training reproduction, use the frozen training revision recorded in the
+results README and the authorized prepared CIFAR/DeepSense inputs:
 
 ```bash
 python run_context_study.py --profile final --aggs bp_fresh bp_reuse   --device cuda --parallel 4 --out-dir results/base_paper_comparison
@@ -488,7 +510,7 @@ swarm study export laptop-pilot --destination results/laptop-pilot-export
 
 Round-boundary checkpoints preserve model, aggregator, simulation, client, history and RNG state. Leases expire after lost connectivity; another compatible worker resumes centrally validated checkpoints. Attempt fencing prevents stale result replacement. Numerical divergence remains a terminal scientific outcome. Exports retain the existing analysis layout; old results are never overwritten.
 
-The upstream `bp_fresh` and `bp_reuse` implementations are now integrated, including checkpoint serialization of reuse parameters/masks. Run their 240-job comparison as a separate study with `--aggs bp_fresh bp_reuse`. The original six-method study remains separate.
+The upstream `bp_fresh` and `bp_reuse` implementations include checkpoint serialization of reuse parameters/masks. Their [240-job comparison is complete](results/base_paper_comparison/README.md). The original six-method study and its primary hypothesis remain separate.
 
 For a MacBook coordinator and Windows-only GPU workers, follow [the step-by-step deployment guide](docs/swarmcompute/MAC_WINDOWS_QUICKSTART.md). A private offline data ZIP can be generated with `swarm data export`; it is never published to GitHub.
 

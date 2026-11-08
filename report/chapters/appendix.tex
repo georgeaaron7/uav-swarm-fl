@@ -57,10 +57,11 @@ pinned for the controlled study is recorded in
 Path & Contents \\
 \midrule
 \texttt{fl/} & Simulator: data, model, client, channel, topology, attacks, aggregators, server \\
-\texttt{tests/} & 46 automated tests \\
+\texttt{tests/} & Automated simulator, coordinator and analysis tests \\
 \texttt{run\_context\_study.py} & Plans and runs the \NumRuns-run controlled study \\
 \texttt{analyze\_context\_study.py} & Prespecified analysis with paired bootstrap \\
 \texttt{results/context\_study/} & Run-level CSV and analysis of the controlled study \\
+\texttt{results/base\_paper\_comparison/} & Compact evidence, paired estimates and validation of the 240-run follow-up \\
 \texttt{scripts/make\_paper\_figures.py} & Builds every figure, table and number in the paper and this report \\
 \texttt{paper/} & Manuscript in IEEE letter format \\
 \texttt{report/} & This report \\
@@ -83,6 +84,16 @@ The main steps are:
   \texttt{tectonic -X compile main.tex}, or pdfLaTeX with BibTeX.
 \end{enumerate}
 Steps~6 and~7 alone regenerate the figures and documents from the committed results.
-The base-paper comparison uses the same runner with the options
-\texttt{--aggs bp\_fresh bp\_reuse} and
-\texttt{--out-dir results/base\_paper\_comparison}.
+The completed base-paper follow-up uses frozen training revision
+\texttt{ad06055} and the same runner with
+\texttt{--aggs bp\_fresh bp\_reuse}. Its full checkpoints, coordinator audit and
+prepared inputs remain local. Compact publication checks source/data fingerprints,
+terminal histories and all 120 paired client-partition summaries. Recompute the
+follow-up intervals from the committed summary data without training:
+\begin{quote}\small
+\texttt{python scripts/analyze\_base\_paper.py --csv}\\
+\texttt{results/base\_paper\_comparison/base\_paper\_runs.csv}
+\end{quote}
+Then repeat steps~6 and~7 above. The result CSV records the final attempt's runtime
+profile and resumed round; an attempt that resumed may include earlier work from a
+different device. The source fingerprints of both studies are retained separately.

@@ -71,15 +71,16 @@ are outside the Phase~I scope.
 \section{Contributions}
 \begin{itemize}
 \item An open, tested PyTorch framework for hierarchical UAV-swarm FL with
-  trace-driven packet erasures, handover and five attacks (46 automated tests).
+  trace-driven packet erasures, handover and five attacks, with automated tests.
 \item A preliminary study, then a controlled \NumRuns-run study whose analysis plan
   and decision threshold were fixed before the runs.
 \item The finding that erasure masking improves accuracy under attack on weak links
   by \MaskGain{} percentage points, while telemetry-weighted reputation lowers it,
   together with an analysis of the reputation rule that suggests a mechanism
   consistent with this result.
-\item Implementations of the base paper's two erasure rules, ready for a direct
-  comparison on the same seeds, attackers and channels.
+\item A completed \BpNumRuns-run comparison of the base paper's two erasure rules
+  on matched seeds, attackers and channels, with validated checkpoint recovery and
+  an explicit separation from the prespecified ablation.
 \item A four-page manuscript in IEEE letter format that reports these results.
 \end{itemize}
 

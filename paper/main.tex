@@ -13,6 +13,7 @@
 \usepackage[hidelinks]{hyperref}
 
 \input{generated/numbers}
+\input{generated/base_paper_numbers}
 \newcommand{\pp}{\,pp}
 \newcommand{\ci}[2]{$[#1,\,#2]$}
 
@@ -32,10 +33,10 @@
 \maketitle
 
 \begin{abstract}
-Federated learning (FL) in UAV swarms must tolerate both compromised clients and
-incomplete model updates. We study hierarchical FL in which packet erasures follow the
-relative power variation of a measured air-to-ground trace, replayed around assumed
-reference signal-to-noise ratio (SNR) anchors with virtual neighboring base stations.
+Federated learning (FL) in UAV swarms must tolerate compromised clients and
+incomplete updates. We study hierarchical FL with packet erasures driven by a
+measured air-to-ground trace, assumed reference signal-to-noise ratio (SNR) anchors
+and virtual neighboring base stations.
 A trusted-reference reputation aggregator is tested with three levels of channel
 awareness: none, packet-erasure masking, and link telemetry inside the reputation
 update. A prespecified paired study comprises \NumRuns{} runs (six aggregators, a
@@ -47,7 +48,10 @@ by \MaskGain\pp{} (\ci{\MaskLo}{\MaskHi}) over no-context aggregation, whereas a
 telemetry changes it by $\TelGain$\pp{} (\ci{\TelLo}{\TelHi}) relative to mask-only,
 accompanied by a rise in honest-update rejection from \RejMask\% to \RejCcra\%. A
 constant-evidence drift analysis suggests that asymmetric trust recovery lowers
-reputation on weak links.
+reputation on weak links. In a separate \BpNumRuns-run follow-up on the same seeds,
+mask-only aggregation outperforms the base paper's fresh-only erasure rule by
+\VsBpAttack\pp{} under attack at 5\,dB (\ci{\VsBpAttackLo}{\VsBpAttackHi}), at a cost
+of $\VsBpClean$\pp{} without attack (\ci{\VsBpCleanLo}{\VsBpCleanHi}).
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -89,11 +93,10 @@ The main contributions of this letter are as follows:
   evidence weakens, consistent with the observed loss from telemetry.
 \end{enumerate}
 
-The rest of this letter is arranged as follows. Section~\ref{sec:model} describes the
-system model and Section~\ref{sec:method} the proposed aggregation.
-Section~\ref{sec:analysis} analyses the equilibrium of its reputation update.
-Section~\ref{sec:results} presents simulation results, and Section~\ref{sec:conclusion}
-concludes the letter.
+The rest of this letter is arranged as follows. Section~\ref{sec:model} gives the
+system model, Section~\ref{sec:method} the proposed aggregation and
+Section~\ref{sec:analysis} its equilibrium analysis. Section~\ref{sec:results} presents
+simulation results and Section~\ref{sec:conclusion} concludes.
 
 \section{System Model}
 \label{sec:model}
@@ -284,12 +287,17 @@ primary contrast, CCRA minus mask-only at 5\,dB minus the same at 15\,dB, and it
 bootstraps over seeds (10{,}000 resamples). All other contrasts are exploratory and
 not adjusted for multiple comparisons.
 
+A separate exploratory \BpNumRuns-run follow-up tests packet-level fresh-only and
+reuse-old rules~\cite{shirvanimoghaddam2022erroneous} on matched seeds 41--50.
+Fresh-only averages delivered coordinates; reuse-old fills erasures from each
+client's last received parameters. Both retain the unused 500-image root reserve.
+
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{figures/accuracy_vs_channel.pdf}
 \caption{Final accuracy under attack (mean of sign-flip, ALIE and IPM over
-\NumSeeds{} seeds; error bars: 95\% paired-seed bootstrap intervals). Diverged runs
-count as 10\%.}
+\NumSeeds{} seeds; error bars: 95\% seed-bootstrap intervals). Dashed, starred rules
+come from the separate \BpNumRuns-run follow-up. Diverged runs count as 10\%.}
 \label{fig:acc}
 \end{figure}
 
@@ -304,9 +312,8 @@ count as 10\%.}
 Fig.~\ref{fig:acc} and Table~\ref{tab:outcomes} show that FedAvg and the
 coordinate-wise median diverged in \DivFedavg{} and \DivMedian{} of their 120 runs
 respectively (FedAvg in all 30 sign-flip runs), whereas none of the four
-root-referenced methods diverged in its 120 runs. A plausible explanation for the
-median's failures is that each cell holds only a few UAVs, so one attacker can move
-it. Across all runs, mask-only attains the highest mean accuracy (\AllMask\% versus
+root-referenced methods diverged in its 120 runs. Across all runs, mask-only attains
+the highest mean accuracy (\AllMask\% versus
 \AllFedavg\% for FedAvg). Against FLTrust it gains \VsFltTrace\pp{}
 (\ci{\VsFltTraceLo}{\VsFltTraceHi}) under attack at 15\,dB, while the 5\,dB
 comparison is inconclusive ($\VsFltStress$\pp, \ci{\VsFltStressLo}{\VsFltStressHi};
@@ -348,22 +355,31 @@ memory, but its norm matching, score normalization and weights also differ, so t
 does not isolate the role of memory. These rates are descriptive and do not by
 themselves establish the causal mechanism.
 
+\subsection{Comparison with the Base Paper}
+Under attack at 5\,dB, mask-only attains \AccMaskStress\% against
+\BpAttackStressFresh\% for the better base-paper rule, fresh-only: a paired gain of
+\VsBpAttack\pp{} (\ci{\VsBpAttackLo}{\VsBpAttackHi}). Without attack, fresh-only is
+ahead (\BpCleanStressFresh\% versus \AccMaskCleanStress\%; $\VsBpClean$\pp,
+\ci{\VsBpCleanLo}{\VsBpCleanHi}), the price of down-weighting honest updates.
+Fresh-only and reuse-old diverged in \BpDivFresh/120 and \BpDivReuse/120 runs,
+including every sign-flip run; fresh-only beats reuse-old by \BpCleanGain\pp{} on
+clean 5\,dB links. The follow-up ran on RTX~2060/GTX~1650 GPUs, not the A100, but on
+the ideal channel, where fresh-only reduces to FedAvg, the studies agree within
+\XcheckMax\pp{} per run, with identical divergences. These contrasts are exploratory.
+
 \subsection{Limitations}
-The trace comes from one measured BS with virtual neighbors, the SNR anchors are
-assumptions rather than calibrated values, the runs include few handovers, the root
-set is assumed clean, and we use one model and aerial-transformed CIFAR-10 rather
-than UAV imagery. Telemetry spoofing and adaptive attacks on the
-reputation~\cite{liu2026evade} are not tested.
+We use one measured BS with virtual neighbors, assumed SNR anchors, few handovers,
+a clean root set, one model and aerial-transformed CIFAR-10. Telemetry spoofing and
+adaptive reputation attacks~\cite{liu2026evade} are untested.
 
 \section{Conclusion}
 \label{sec:conclusion}
-In a hierarchical UAV-swarm FL system with measured-trace packet erasures, the
-channel-aware component that pays off is simple: compare and average each update
-only on the coordinates that actually arrived. Feeding link telemetry into an
-asymmetric reputation update lowered accuracy on weak links, accompanied by more
-honest-update rejections. Future work will redesign the reward rule so that weak links
-do not bias reputation downward, evaluate it on fresh seeds and higher-mobility
-traces, and study adaptive and telemetry-spoofing attackers.
+With measured-trace packet erasures, masking improved attacked accuracy, while
+telemetry-weighted reputation hurt weak-link performance and rejected more honest
+updates. Against the base paper's erasure rules, masking with a trusted reference
+gained about \VsBpAttack\pp{} under attack for a $\VsBpClean$\pp{} clean cost. Future
+work will redesign the reward rule and test fresh seeds, stronger mobility and
+adaptive attackers.
 
 \bibliographystyle{IEEEtran}
 \bibliography{refs}

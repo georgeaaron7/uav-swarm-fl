@@ -21,8 +21,8 @@ inner-product-manipulation attacks. We designed CCRA, a reputation-based aggrega
 that compares each update with a reference computed on a small root dataset and can
 use the channel in two ways: by ignoring lost coordinates (erasure masking) and by
 letting link telemetry slow how fast a UAV regains trust. The base paper's two
-erasure rules, fresh-only averaging and reuse of old updates, are also implemented
-for a direct comparison.
+erasure rules, fresh-only averaging and reuse of old updates, are evaluated in a
+separate \BpNumRuns-run follow-up.
 
 A FedAvg baseline reached 62.6\% (IID) and 60.2\% (non-IID) accuracy, and a
 preliminary single-seed study looked promising for CCRA. To find which part of CCRA
@@ -39,10 +39,19 @@ reputation of an honest UAV on a weak link moves toward the lower tail of its sc
 None of the four root-referenced aggregators diverged, whereas FedAvg and the median
 diverged in \DivFedavg{} and \DivMedian{} of their 120 runs.
 
+Against the base paper, mask-only aggregation was \VsBpAttack{} points more accurate
+than its better rule, fresh-only, under attack at 5\,dB (\ci{\VsBpAttackLo}{\VsBpAttackHi}),
+at a cost of \VsBpClean{} points without attack (\ci{\VsBpCleanLo}{\VsBpCleanHi}).
+The base paper's rules diverged in \BpDivFresh/120 and \BpDivReuse/120 runs,
+including every sign-flip run, and fresh-only beat reuse-old by \BpCleanGain{} points
+on clean stressed links. This follow-up ran on Windows GPU workers; on the ideal
+channel it matches the A100 study within \XcheckMax{} points per run.
+
 The useful channel-aware component is therefore erasure masking, and the reward rule
-must be redesigned before telemetry can help. The results are written up as a
-four-page IEEE letter. Phase~II will complete the base-paper comparison, revise the
-reward rule and test it on fresh seeds, higher-mobility traces and adaptive attackers.
+must be redesigned before telemetry can help. The results are written up as an
+IEEE letter. Phase~II will revise the reward rule and test it on fresh seeds,
+higher-mobility traces and adaptive attackers, including hardware-controlled
+confirmation of the follow-up contrasts.
 
 \textbf{Index Terms :} Federated learning, UAV swarm, Byzantine robustness,
 packet erasure, hierarchical aggregation, reputation.

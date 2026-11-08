@@ -8,8 +8,9 @@ Byzantine. The framework supports hierarchical aggregation at three base station
 handover, packet erasures from a synthetic jammed channel or a measured UAV trace,
 five attacks and twelve selectable aggregation rules (FedAvg, the CosAvg-style
 baseline, median, trimmed mean, Krum, Multi-Krum, FLTrust, three CCRA variants and the
-base paper's two erasure rules), six of which were evaluated in the controlled study,
-and is covered by automated tests. A FedAvg
+base paper's two erasure rules), with automated tests. The controlled study evaluated
+six methods; a separate \BpNumRuns-run follow-up evaluated the two base-paper rules.
+A FedAvg
 baseline was established first. A reputation-based aggregator, CCRA, was then
 designed with two forms of channel awareness, erasure masking and telemetry-weighted
 reputation. After a promising but inconclusive single-seed study, a prespecified,
@@ -38,14 +39,24 @@ effect. The results have been written up as a manuscript in IEEE letter format.
   consistent with this mechanism.
 \item On weak links, the exploratory comparison of the best variant with FLTrust was
   inconclusive; a clear advantage over FLTrust appeared only at 15\,dB.
+\item Against the base paper, mask-only CCRA was \VsBpAttack{} points more accurate
+  than its better erasure rule under attack at 5\,dB (\ci{\VsBpAttackLo}{\VsBpAttackHi}),
+  and \VsBpClean{} points less accurate without attack
+  (\ci{\VsBpCleanLo}{\VsBpCleanHi}): robustness to attackers costs a little accuracy
+  when there are none.
+\item Within the base paper's rules, fresh-only exceeds reuse-old by
+  \BpCleanGain{} points on clean stressed links
+  (\ci{\BpCleanLo}{\BpCleanHi}). The rules diverged in \BpDivFresh/120 and
+  \BpDivReuse/120 runs; neither survived the tested sign-flip attack. This does not
+  contradict the original paper's honest-client convergence analysis.
 \end{enumerate}
 
 \section{Scope for Future Work (Phase II)}
 \begin{enumerate}
-\item \textbf{Complete the base-paper comparison.} Run the base paper's fresh-only and
-  reuse-old rules on the same seeds, attackers and channels (240 runs), and report
-  them against mask-only and full CCRA. Its reuse-old idea also suggests a variant
-  that fills lost packets from a trusted UAV's previous update instead of masking them.
+\item \textbf{Extend the completed base-paper comparison.} Repeat key contrasts on
+  a common hardware/software stack and fresh seeds. Evaluate whether filling lost
+  packets from a trusted UAV's previous parameters can improve on masking without
+  retaining poisoned values.
 \item \textbf{Redesign the reward rule} so that weak links do not bias reputation
   downwards, for example by making the update symmetric in the evidence, or by
   normalizing each UAV's score against its own recent history, and freeze the rule
