@@ -48,9 +48,10 @@ by \MaskGain\pp{} (\ci{\MaskLo}{\MaskHi}) over no-context aggregation, whereas a
 telemetry changes it by $\TelGain$\pp{} (\ci{\TelLo}{\TelHi}) relative to mask-only,
 accompanied by a rise in honest-update rejection from \RejMask\% to \RejCcra\%. A
 constant-evidence drift analysis suggests that asymmetric trust recovery lowers
-reputation on weak links. A separate \BpNumRuns-run follow-up finds that fresh-only
-averaging exceeds reuse of old parameters by \BpCleanGain\pp{} on clean stressed
-links (\ci{\BpCleanLo}{\BpCleanHi}); neither rule tolerates the tested sign-flip attack.
+reputation on weak links. In a separate \BpNumRuns-run follow-up on the same seeds,
+mask-only aggregation outperforms the base paper's fresh-only erasure rule by
+\VsBpAttack\pp{} under attack at 5\,dB (\ci{\VsBpAttackLo}{\VsBpAttackHi}), at a cost
+of $\VsBpClean$\pp{} without attack (\ci{\VsBpCleanLo}{\VsBpCleanHi}).
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -91,6 +92,11 @@ The main contributions of this letter are as follows:
   of the behavior score~\cite{newey1987expectile} and show that it falls as link
   evidence weakens, consistent with the observed loss from telemetry.
 \end{enumerate}
+
+The rest of this letter is arranged as follows. Section~\ref{sec:model} gives the
+system model, Section~\ref{sec:method} the proposed aggregation and
+Section~\ref{sec:analysis} its equilibrium analysis. Section~\ref{sec:results} presents
+simulation results and Section~\ref{sec:conclusion} concludes.
 
 \section{System Model}
 \label{sec:model}
@@ -349,29 +355,29 @@ memory, but its norm matching, score normalization and weights also differ, so t
 does not isolate the role of memory. These rates are descriptive and do not by
 themselves establish the causal mechanism.
 
-\subsection{Base-Paper Erasure Rules}
+\subsection{Comparison with the Base Paper}
+Under attack at 5\,dB, mask-only attains \AccMaskStress\% against
+\BpAttackStressFresh\% for the better base-paper rule, fresh-only: a paired gain of
+\VsBpAttack\pp{} (\ci{\VsBpAttackLo}{\VsBpAttackHi}). Without attack, fresh-only is
+ahead (\BpCleanStressFresh\% versus \AccMaskCleanStress\%; $\VsBpClean$\pp,
+\ci{\VsBpCleanLo}{\VsBpCleanHi}), the price of down-weighting honest updates.
 Fresh-only and reuse-old diverged in \BpDivFresh/120 and \BpDivReuse/120 runs,
-respectively, including all 30 sign-flip runs each. On clean 5\,dB links they attain
-\BpCleanStressFresh\% and \BpCleanStressReuse\%, a paired fresh-only gain of
-\BpCleanGain\pp{} (\ci{\BpCleanLo}{\BpCleanHi}). Under attack at 5\,dB, the gain is
-\BpAttackGain\pp{} (\ci{\BpAttackLo}{\BpAttackHi}). These exploratory intervals
-retain divergent seeds at chance. The rules address erasures, not Byzantine clients;
-this packet-level, hierarchical experiment does not test the original paper's
-convergence theorem.
+including every sign-flip run; fresh-only beats reuse-old by \BpCleanGain\pp{} on
+clean 5\,dB links. The follow-up ran on RTX~2060/GTX~1650 GPUs, not the A100, but on
+the ideal channel, where fresh-only reduces to FedAvg, the studies agree within
+\XcheckMax\pp{} per run, with identical divergences. These contrasts are exploratory.
 
 \subsection{Limitations}
 We use one measured BS with virtual neighbors, assumed SNR anchors, few handovers,
 a clean root set, one model and aerial-transformed CIFAR-10. Telemetry spoofing and
-adaptive reputation attacks~\cite{liu2026evade} are untested. The follow-up used
-GTX~1650/RTX~2060 workers, differing software and checkpoint recovery, versus an
-A100 ablation; cross-study rankings are descriptive, without hardware-controlled
-inference.
+adaptive reputation attacks~\cite{liu2026evade} are untested.
 
 \section{Conclusion}
 \label{sec:conclusion}
 With measured-trace packet erasures, masking improved attacked accuracy, while
 telemetry-weighted reputation hurt weak-link performance and rejected more honest
-updates. Fresh-only also outperformed reuse-old on clean stressed links. Future
+updates. Against the base paper's erasure rules, masking with a trusted reference
+gained about \VsBpAttack\pp{} under attack for a $\VsBpClean$\pp{} clean cost. Future
 work will redesign the reward rule and test fresh seeds, stronger mobility and
 adaptive attackers.
 

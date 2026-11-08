@@ -28,8 +28,13 @@ a four-page IEEE letter: [`paper/main.pdf`](paper/main.pdf) ([source and build n
   With Erroneous Communication Links", IEEE Commun. Lett. 26(6), 2022. Its two server
   rules (fresh-only and reuse-old) now have a separate, completed
   [240-run comparison](results/base_paper_comparison/README.md): 157 successful
-  runs and 83 numerical divergences. On clean stressed links, fresh-only gains
-  +5.39 pp over reuse-old (95% paired-seed CI [+4.11, +6.74]).
+  runs and 83 numerical divergences. Under attack at 5 dB, mask-only CCRA is
+  +19.2 pp more accurate than the better base-paper rule, fresh-only (49.5% vs
+  30.3%; paired-seed CI [+15.9, +23.0]). Without attack it is 2.1 pp behind
+  (54.7% vs 56.9%; CI [−2.9, −1.4]), the cost of robustness. On clean stressed links,
+  fresh-only gains +5.39 pp over reuse-old (CI [+4.11, +6.74]). On the ideal channel,
+  where fresh-only equals FedAvg, the GPU follow-up matches the A100 study within
+  1.1 pp per run.
 
 | Accuracy under attack vs channel | Ablation contrasts | Reputation-gate decisions at 5 dB |
 |---|---|---|

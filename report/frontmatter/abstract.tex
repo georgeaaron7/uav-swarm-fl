@@ -39,11 +39,13 @@ reputation of an honest UAV on a weak link moves toward the lower tail of its sc
 None of the four root-referenced aggregators diverged, whereas FedAvg and the median
 diverged in \DivFedavg{} and \DivMedian{} of their 120 runs.
 
-The follow-up found a \BpCleanGain-point advantage for fresh-only over reuse-old on
-clean stressed links (\ci{\BpCleanLo}{\BpCleanHi}). Its rules diverged in
-\BpDivFresh/120 and \BpDivReuse/120 runs; all sign-flip runs diverged. These are
-packet-level adaptations evaluated on Windows GPU workers, separate from the A100
-ablation and the original paper's honest-client theory.
+Against the base paper, mask-only aggregation was \VsBpAttack{} points more accurate
+than its better rule, fresh-only, under attack at 5\,dB (\ci{\VsBpAttackLo}{\VsBpAttackHi}),
+at a cost of \VsBpClean{} points without attack (\ci{\VsBpCleanLo}{\VsBpCleanHi}).
+The base paper's rules diverged in \BpDivFresh/120 and \BpDivReuse/120 runs,
+including every sign-flip run, and fresh-only beat reuse-old by \BpCleanGain{} points
+on clean stressed links. This follow-up ran on Windows GPU workers; on the ideal
+channel it matches the A100 study within \XcheckMax{} points per run.
 
 The useful channel-aware component is therefore erasure masking, and the reward rule
 must be redesigned before telemetry can help. The results are written up as an

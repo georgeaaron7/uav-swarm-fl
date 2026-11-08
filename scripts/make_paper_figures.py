@@ -357,6 +357,43 @@ def write_base_assets(analysis, out):
     (out / "generated/table_base_paper.tex").write_text("\n".join(lines) + "\n")
 
 
+def write_cross_study(table, base_table, seeds, out):
+    """Mask-only versus the base paper's better rule, and the hardware cross-check.
+
+    Both studies share seeds, data partitions and attacker identities, so the
+    differences are paired by seed; they are still cross-study and exploratory.
+    A separate RNG stream leaves every other macro unchanged.
+    """
+    rng = np.random.default_rng(20261109)
+    lines = []
+    for label, attacks in [("Attack", ATTACKS), ("Clean", ["clean"])]:
+        diff = np.array([
+            np.mean([table[(s, a, "hfl_trace_stress", "ccra_maskonly")]["acc"]
+                     - base_table[(s, a, "hfl_trace_stress", "bp_fresh")]["acc"] for a in attacks])
+            for s in seeds]) * 100
+        lo, hi = bootstrap_ci(diff, rng)
+        lines += [tex_number(f"VsBp{label}", float(diff.mean())),
+                  tex_number(f"VsBp{label}Lo", lo), tex_number(f"VsBp{label}Hi", hi)]
+    clean_mask = np.mean([table[(s, "clean", "hfl_trace_stress", "ccra_maskonly")]["acc"] for s in seeds])
+    lines.append(tex_number("AccMaskCleanStress", 100 * float(clean_mask)))
+    # On the ideal channel nothing is erased, so fresh-only reduces to FedAvg:
+    # any difference between the two studies there comes from hardware and software.
+    gaps, same_divergence = [], True
+    for s in seeds:
+        for a in ["clean"] + ATTACKS:
+            ours = table[(s, a, "hfl_ideal", "fedavg")]
+            theirs = base_table[(s, a, "hfl_ideal", "bp_fresh")]
+            same_divergence &= ours["diverged"] == theirs["diverged"]
+            if not ours["diverged"] and not theirs["diverged"]:
+                gaps.append(abs(ours["acc"] - theirs["acc"]) * 100)
+    if not same_divergence:
+        raise ValueError("ideal-channel divergence differs between studies; revisit the cross-check")
+    lines += [tex_number("XcheckMax", max(gaps)), tex_number("XcheckMean", float(np.mean(gaps)), 2),
+              f"\\newcommand{{\\XcheckRuns}}{{{len(gaps)}}}"]
+    with (out / "generated/base_paper_numbers.tex").open("a") as handle:
+        handle.write("\n".join(lines) + "\n")
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--csv", type=Path, default=REPO / "results/context_study/context_runs.csv")
@@ -390,6 +427,7 @@ def main(argv=None):
     write_attack_table(table, seeds, args.out / "generated/table_per_attack.tex")
     analysis = json.loads((args.base_csv.parent / "base_paper_analysis.json").read_text())
     write_base_assets(analysis, args.out)
+    write_cross_study(table, base_table, seeds, args.out)
 
     for (label, pair), c in [(CONTRASTS[0], "hfl_trace_stress"), (CONTRASTS[1], "hfl_trace_stress")]:
         mean, lo, hi = est[(pair, c)]

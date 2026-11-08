@@ -321,9 +321,28 @@ convergence theorem.
 
 Figure~\ref{fig:acc} now includes both rules alongside the original six methods.
 The original ablation's findings about masking and telemetry are unchanged.
-Different GPUs, software versions, training-source fingerprints and recovery paths
-limit a causal interpretation of cross-study differences; only the within-follow-up
-fresh-only versus reuse-old contrasts are paired here.
+
+\subsection{Our Method against the Base Paper}
+\label{sec:vs-bp}
+Both studies use the same seeds, data partitions and attacker identities, so mask-only
+CCRA can be compared with the base paper's better rule, fresh-only, seed by seed. Under
+attack at 5\,dB, mask-only attains \AccMaskStress\% against \BpAttackStressFresh\% for
+fresh-only, a paired gain of \VsBpAttack{} percentage points (95\% CI
+\ci{\VsBpAttackLo}{\VsBpAttackHi}). Without attack at 5\,dB, fresh-only is ahead,
+\BpCleanStressFresh\% against \AccMaskCleanStress\%, a difference of \VsBpClean{} points
+(\ci{\VsBpCleanLo}{\VsBpCleanHi}). This is the cost of robustness: mask-only judges
+every update against the root reference and down-weights some honest ones, which
+helps only when attackers are present. The base paper's rules were designed for
+honest clients and pay nothing for that protection, but they offer none.
+
+The two studies ran on different hardware (an A100 against RTX~2060 and GTX~1650
+workers) and software versions, so these contrasts are cross-study and exploratory.
+A built-in check bounds the hardware effect. On the ideal channel nothing is erased,
+so fresh-only reduces exactly to FedAvg, which the controlled study also ran on the
+same seeds. Across the \XcheckRuns{} ideal-channel runs that did not diverge, the
+two studies agree within \XcheckMax{} points per run (mean \XcheckMean{} points),
+and both diverge in exactly the same runs. That is far smaller than the
+\VsBpAttack-point gap under attack.
 
 Operational interruptions were kept separate from numerical divergence. Clean
 checkpointed stops that had been mislabeled as application failures were requeued

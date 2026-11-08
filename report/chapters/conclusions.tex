@@ -39,7 +39,12 @@ effect. The results have been written up as a manuscript in IEEE letter format.
   consistent with this mechanism.
 \item On weak links, the exploratory comparison of the best variant with FLTrust was
   inconclusive; a clear advantage over FLTrust appeared only at 15\,dB.
-\item In the separate base-paper comparison, fresh-only exceeds reuse-old by
+\item Against the base paper, mask-only CCRA was \VsBpAttack{} points more accurate
+  than its better erasure rule under attack at 5\,dB (\ci{\VsBpAttackLo}{\VsBpAttackHi}),
+  and \VsBpClean{} points less accurate without attack
+  (\ci{\VsBpCleanLo}{\VsBpCleanHi}): robustness to attackers costs a little accuracy
+  when there are none.
+\item Within the base paper's rules, fresh-only exceeds reuse-old by
   \BpCleanGain{} points on clean stressed links
   (\ci{\BpCleanLo}{\BpCleanHi}). The rules diverged in \BpDivFresh/120 and
   \BpDivReuse/120 runs; neither survived the tested sign-flip attack. This does not
