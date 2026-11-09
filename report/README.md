@@ -33,9 +33,7 @@ The default compiler (pdfLaTeX) and BibTeX work without changes.
 ## Before submission
 
 - Confirm the guide's and HOD's titles in `info.tex` (Dr./Prof. are assumed).
-- The certificate is meant to be printed on departmental letterhead; fill the
-  examination date only when it is known. Keep the template's certificate wording if
-  the institute requires it.
+- Confirm the certificate wording and examination date against institute requirements.
 - Check the plagiarism score. The report is written separately from the paper, but
   both describe the same study.
 - The cited IEEE letters were checked against their full texts on 2026-11-03/04.

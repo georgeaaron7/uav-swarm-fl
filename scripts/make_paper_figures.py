@@ -244,8 +244,16 @@ def write_table(out_rows, table, seeds, path: Path):
     path.write_text("\n".join(lines) + "\n")
 
 
+def format_number(value: float, digits: int = 1, signed: bool = False) -> str:
+    # Normalize after rounding so a tiny negative contrast never prints as -0.0.
+    rounded = round(float(value), digits)
+    if rounded == 0:
+        rounded = 0.0
+    return format(rounded, f"{'+' if signed else ''}.{digits}f")
+
+
 def tex_number(name: str, value: float, digits: int = 1) -> str:
-    return f"\\newcommand{{\\{name}}}{{{value:.{digits}f}}}"
+    return f"\\newcommand{{\\{name}}}{{{format_number(value, digits)}}}"
 
 
 def write_numbers(table, seeds, est, rates, out_rows, rows, rng, path: Path):
@@ -281,6 +289,8 @@ def write_numbers(table, seeds, est, rates, out_rows, rows, rng, path: Path):
         tex_number("AccMaskStress", acc5["ccra_maskonly"]),
         tex_number("AccNoctxStress", acc5["ccra_noctx"]),
         tex_number("AccFltrustStress", acc5["fltrust"]),
+        tex_number("FltOverCcraStress", acc5["fltrust"] - acc5["ccra"]),
+        tex_number("TelIdeal", est[(("ccra", "ccra_maskonly"), "hfl_ideal")][0]),
         tex_number("RejCcra", rates[("ccra", "honest_rejection")]),
         tex_number("RejMask", rates[("ccra_maskonly", "honest_rejection")]),
         tex_number("AccptCcra", rates[("ccra", "attacker_acceptance")]),
@@ -333,13 +343,13 @@ def write_base_assets(analysis, out):
     for method, label in [("bp_fresh", "Fresh"), ("bp_reuse", "Reuse")]:
         row = analysis["outcomes"][method]
         lines += [f"\\newcommand{{\\BpDiv{label}}}{{{row['diverged']}}}",
-                  tex_number("BpAll" + label, row["all_run_final_accuracy_pct"], 2),
-                  tex_number("BpCleanStress" + label, clean["accuracy_pct"][method], 2),
-                  tex_number("BpAttackStress" + label, attacked["accuracy_pct"][method], 2)]
+                  tex_number("BpAll" + label, row["all_run_final_accuracy_pct"]),
+                  tex_number("BpCleanStress" + label, clean["accuracy_pct"][method]),
+                  tex_number("BpAttackStress" + label, attacked["accuracy_pct"][method])]
     for prefix, row in [("BpClean", clean), ("BpAttack", attacked)]:
-        lines += [tex_number(prefix + "Gain", row["mean_pp"], 2),
-                  tex_number(prefix + "Lo", row["ci95_pp"][0], 2),
-                  tex_number(prefix + "Hi", row["ci95_pp"][1], 2)]
+        lines += [tex_number(prefix + "Gain", row["mean_pp"]),
+                  tex_number(prefix + "Lo", row["ci95_pp"][0]),
+                  tex_number(prefix + "Hi", row["ci95_pp"][1])]
     (out / "generated/base_paper_numbers.tex").write_text("\n".join(lines) + "\n")
     lines = [r"\begin{tabular}{@{}llrrr@{}}", r"\toprule",
              r"Attack & Channel & Fresh (\%) & Reuse (\%) & Fresh $-$ reuse: pp [95\% CI] \\",
@@ -350,8 +360,10 @@ def write_base_assets(analysis, out):
             row = estimates[f"{attack}_{condition}"]
             low, high = row["ci95_pp"]
             lines.append(f"{label if i == 0 else ''} & {channel_labels[condition]} & "
-                         f"{row['accuracy_pct']['bp_fresh']:.2f} & {row['accuracy_pct']['bp_reuse']:.2f} & "
-                         f"${row['mean_pp']:+.2f}\\;[{low:+.2f},\\,{high:+.2f}]$ \\\\")
+                         f"{format_number(row['accuracy_pct']['bp_fresh'])} & "
+                         f"{format_number(row['accuracy_pct']['bp_reuse'])} & "
+                         f"${format_number(row['mean_pp'], signed=True)}\\;"
+                         f"[{format_number(low, signed=True)},\\,{format_number(high, signed=True)}]$ \\\\")
         lines.append(r"\midrule" if attack != "ipm" else r"\bottomrule")
     lines.append(r"\end{tabular}")
     (out / "generated/table_base_paper.tex").write_text("\n".join(lines) + "\n")
@@ -360,8 +372,9 @@ def write_base_assets(analysis, out):
 def per_curves():
     """Our logistic packet-error curve against the base paper's normal approximation.
 
-    The base paper (its Eq. 1) gives the packet error rate of a k-bit packet sent in n
-    channel uses at SNR g as Q((n log2(1+g) - k + log2 n) / sqrt(n V(g))), with
+    We use the AWGN normal approximation with its half-log third-order term for a
+    k-bit packet sent in n channel uses at SNR g:
+    Q((n log2(1+g) - k + 0.5 log2 n) / sqrt(n V(g))), with
     V(g) = (1 - (1+g)^-2) log2(e)^2. With k = our packet size and the code rate whose
     capacity threshold is our 3 dB midpoint, that curve is a near-vertical waterfall.
     Averaging it over a Gaussian SNR spread (in dB) within the round reproduces the
@@ -382,7 +395,7 @@ def per_curves():
     def normal_approx(g_db):
         g = 10 ** (np.asarray(g_db, dtype=float) / 10)
         dispersion = (1 - (1 + g) ** -2) * np.log2(np.e) ** 2
-        return q((n * np.log2(1 + g) - k + np.log2(n)) / np.sqrt(n * dispersion))
+        return q((n * np.log2(1 + g) - k + 0.5 * np.log2(n)) / np.sqrt(n * dispersion))
 
     def logistic(g_db):
         return 1 / (1 + np.exp(cfg.per_slope * (np.asarray(g_db) - cfg.per_threshold_db)))
@@ -410,16 +423,17 @@ def per_curves():
 def fig_per_curve(curves, out: Path):
     fig, ax = plt.subplots(figsize=(3.5, 2.1))
     ax.plot(curves["snr"], curves["sharp"], color=MUTED, linewidth=1.2, linestyle="--",
-            label="Base-paper normal approx.")
-    ax.plot(curves["snr"], curves["averaged"], color=COLORS["bp_fresh"], linewidth=2.4, alpha=0.55,
+            label="Normal approximation")
+    ax.plot(curves["snr"], curves["averaged"], color=COLORS["bp_fresh"], linewidth=2,
+            linestyle="--", zorder=3,
             label=f"Same, averaged over {curves['spread']:.1f} dB spread")
-    ax.plot(curves["snr"], curves["logistic"], color=COLORS["fedavg"], linewidth=1.4,
+    ax.plot(curves["snr"], curves["logistic"], color=COLORS["fedavg"], linewidth=1.2,
+            marker="o", markevery=24, markersize=3, markerfacecolor="white",
             label=f"Our logistic ($a$={curves['slope']:g}, {curves['threshold']:g} dB)")
     ax.set_xlabel("SNR (dB)")
     ax.set_ylabel("Packet error rate")
     ax.set_ylim(-0.02, 1.02)
-    # Right of 5 dB every curve is near zero, so the legend sits clear of them there.
-    ax.legend(frameon=False, fontsize=6.5, loc="upper left", bbox_to_anchor=(0.6, 0.85))
+    ax.legend(frameon=False, fontsize=6.5, loc="lower left", bbox_to_anchor=(0, 1.02))
     fig.tight_layout()
     save(fig, out)
 
@@ -454,6 +468,13 @@ def write_cross_study(table, base_table, seeds, out):
                   tex_number(f"VsBp{label}Lo", lo), tex_number(f"VsBp{label}Hi", hi)]
     clean_mask = np.mean([table[(s, "clean", "hfl_trace_stress", "ccra_maskonly")]["acc"] for s in seeds])
     lines.append(tex_number("AccMaskCleanStress", 100 * float(clean_mask)))
+    fltrust_stress = seed_means(table, seeds, ["hfl_trace_stress"], "fltrust").mean() * 100
+    fresh_stress = seed_means(base_table, seeds, ["hfl_trace_stress"], "bp_fresh").mean() * 100
+    lines.append(tex_number("FltVsBpAttack", float(fltrust_stress - fresh_stress)))
+    lines.append(tex_number("IdealHandovers", np.mean([
+        float(r["total_handovers"]) for key, r in table.items() if key[2] == "hfl_ideal"])))
+    lines.append(tex_number("TraceHandovers", np.mean([
+        float(r["total_handovers"]) for key, r in table.items() if key[2] != "hfl_ideal"])))
     # On the ideal channel nothing is erased, so fresh-only reduces to FedAvg:
     # any difference between the two studies there comes from hardware and software.
     gaps, same_divergence = [], True
@@ -466,7 +487,7 @@ def write_cross_study(table, base_table, seeds, out):
                 gaps.append(abs(ours["acc"] - theirs["acc"]) * 100)
     if not same_divergence:
         raise ValueError("ideal-channel divergence differs between studies; revisit the cross-check")
-    lines += [tex_number("XcheckMax", max(gaps)), tex_number("XcheckMean", float(np.mean(gaps)), 2),
+    lines += [tex_number("XcheckMax", max(gaps)), tex_number("XcheckMean", float(np.mean(gaps))),
               f"\\newcommand{{\\XcheckRuns}}{{{len(gaps)}}}"]
     with (out / "generated/base_paper_numbers.tex").open("a") as handle:
         handle.write("\n".join(lines) + "\n")
