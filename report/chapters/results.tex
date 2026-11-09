@@ -111,7 +111,7 @@ within each experiment.
 
 \section{Preliminary Study Results}
 The preliminary study compared FedAvg, the CosAvg-style baseline (inspired by
-\citet{liao2023tee}, not an exact reproduction) and an early version of CCRA with one
+Liao et al.~\cite{liao2023tee}, not an exact reproduction) and an early version of CCRA with one
 BS, 30 rounds, one local epoch and a single seed. Three of the ten UAVs flipped their
 labels, and in the jammed scenarios a ground jammer targeted three honest UAVs.
 Table~\ref{tab:prelim} lists the final accuracy (mean of the last five rounds), and
@@ -326,7 +326,7 @@ attacks within each seed, not 30 independent replicates.
 
 Retaining old parameters does not improve this finite-horizon stressed-channel
 experiment, and neither rule provides Byzantine robustness. This is compatible with
-the scope of \citet{shirvanimoghaddam2022erroneous}: its analysis assumes honest
+the scope of Shirvanimoghaddam et al.~\cite{shirvanimoghaddam2022erroneous}: its analysis assumes honest
 clients and whole-upload erasures, whereas the present implementation uses packet
 erasures in a hierarchical non-IID CNN task with adversarial updates. These results
 are an adaptation study, not an exact reproduction or a refutation of the original
@@ -411,7 +411,7 @@ change.
 \item \textbf{Trust assumptions.} The root set is assumed clean; no trusted execution
   environment or attestation was implemented or evaluated.
 \item \textbf{Attacker model.} Telemetry is assumed authentic, and adaptive attacks on
-  the reputation itself \citep{liu2026evade} were not tested.
+  the reputation itself \cite{liu2026evade} were not tested.
 \item \textbf{Statistics.} Ten seeds give approximate intervals; secondary contrasts
   are not adjusted for multiple comparisons. Any revised rule must be tested on new
   seeds, not re-tuned on these ten.

@@ -8,7 +8,7 @@ compiled copy. The layout follows the institute's LaTeX thesis template
   acknowledgements, abstract with index terms
 - blue linked contents, then lists of figures, tables, abbreviations and symbols
 - left-aligned "Chapter N" heads, running headers with rules on continuation pages
-- author-year references, followed by the appendices
+- IEEE numbered citations and a reference list in order of first citation, followed by the appendices
 
 Chapter and front-page positions were measured against the template PDF and match it
 to within a few points.
@@ -29,6 +29,11 @@ to within a few points.
 The default compiler (pdfLaTeX) and BibTeX work without changes.
 
 **Locally:** `tectonic -X compile main.tex`.
+
+Citations use `\cite{key}` with the `cite` package and the `IEEEtran` BibTeX
+style. The same source always keeps the same bracketed number, including in tables;
+new sources are numbered in order of first citation. Narrative citations may name
+the authors, for example `McMahan et al.~\cite{mcmahan2017fedavg}`.
 
 ## Before submission
 

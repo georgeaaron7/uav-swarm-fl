@@ -1,7 +1,7 @@
 % B.Tech project report, NIT Warangal.
 % Layout follows the institute's LaTeX thesis template (Template_for_Thesis, 2024):
 % A4, Computer Modern 12 pt, 1.5 spacing, 30/20 mm side margins, left-aligned
-% chapter heads, blue hyperlinks, author-year references, appendices after them.
+% chapter heads, blue hyperlinks, IEEE numbered references, appendices after them.
 % Compiles on Overleaf with pdfLaTeX + BibTeX. Figures and numbers in figures/ and
 % generated/ are copied in by scripts/make_paper_figures.py; do not edit them by hand.
 \documentclass[12pt,a4paper,oneside,openany]{report}
@@ -27,7 +27,7 @@
 \usepackage{titlesec}
 \usepackage{indentfirst} % the template indents the first paragraph after a heading
 \usepackage{fancyhdr}
-\usepackage[square,sort,comma]{natbib}
+\usepackage[nocompress]{cite} % IEEE: separate bracketed numbers, in citation order
 \usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
 
 \input{info}
@@ -110,7 +110,7 @@
 % References, then appendices, as in the template.
 \clearpage
 \phantomsection\addcontentsline{toc}{chapter}{References}
-\bibliographystyle{abbrvnat}
+\bibliographystyle{IEEEtran}
 \bibliography{refs}
 
 \input{chapters/appendix}

@@ -97,7 +97,7 @@ Chapter~\ref{ch:results} has no jammer.
 
 \subsection{Measured-Trace Channel}
 For realism we replay a measured UAV link from DeepSense~6G
-Scenario~23 \citep{alkhateeb2023deepsense,charan2025drone}, in which a drone flies
+Scenario~23 \cite{alkhateeb2023deepsense,charan2025drone}, in which a drone flies
 around a ground receiver that records 60\,GHz beam powers together with position,
 altitude and speed. The dataset's power values are uncalibrated, so only their
 variation relative to the median is used:
@@ -128,10 +128,10 @@ also records link telemetry for each UAV: SNR, packet delivery ratio (PDR), long
 reliability, distance, speed and handover state.
 
 \subsubsection{Choice of the packet-error curve}
-The base paper \citep{shirvanimoghaddam2022erroneous} models packet errors with the
+The base paper \cite{shirvanimoghaddam2022erroneous} models packet errors with the
 normal approximation for finite-length codes: a $k$-bit packet sent in $n$ channel
 uses at linear SNR $\gamma$ is lost with approximate probability, using the
-AWGN third-order term $\tfrac12\log_2 n$ \citep{polyanskiy2010finite},
+AWGN third-order term $\tfrac12\log_2 n$ \cite{polyanskiy2010finite},
 \begin{equation}
   p = Q\!\left(\frac{n\log_2(1+\gamma)-k+\tfrac12\log_2 n}{\sqrt{n\,V(\gamma)}}\right),\qquad
   V(\gamma)=\bigl(1-(1+\gamma)^{-2}\bigr)\log_2^2 e .
@@ -171,11 +171,11 @@ of the following (\texttt{fl/attacks.py}, \texttt{fl/client.py}):
 \begin{itemize}
 \item \textbf{Label flip} (data poisoning): train on labels mapped $c\mapsto 9-c$.
 \item \textbf{Sign flip}: send $-\lambda\boldsymbol\Delta_k$ with $\lambda=5$.
-\item \textbf{ALIE-style} \citep{baruch2019alie}: send
+\item \textbf{ALIE-style} \cite{baruch2019alie}: send
   $\boldsymbol\mu-z\,\boldsymbol\sigma\odot\mathrm{sign}(\boldsymbol\mu)$ with $z=1.5$,
   where $\boldsymbol\mu$ and $\boldsymbol\sigma$ are the mean and standard deviation of
   the honest updates in the attacker's cell.
-\item \textbf{IPM} \citep{xie2019ipm}: send $-\epsilon\boldsymbol\mu$ with $\epsilon=0.5$.
+\item \textbf{IPM} \cite{xie2019ipm}: send $-\epsilon\boldsymbol\mu$ with $\epsilon=0.5$.
 \end{itemize}
 The ALIE and IPM attackers know the honest updates of their cell, which is a strong
 assumption chosen to stress the defences. The BS's telemetry is assumed authentic;
@@ -187,17 +187,17 @@ counts and telemetry (\texttt{fl/aggregators.py}).
 
 \subsection{Baselines}
 \label{sec:method-baselines}
-\textbf{FedAvg} \citep{mcmahan2017fedavg} averages the received updates weighted by
+\textbf{FedAvg} \cite{mcmahan2017fedavg} averages the received updates weighted by
 $n_k$, with lost coordinates counted as zeros. \textbf{CosAvg}, used only in the
 preliminary study, is a CosAvg-style baseline inspired by the earlier UAV-FL work of
-\citet{liao2023tee}: it weights each update by
+Liao et al.~\cite{liao2023tee}: it weights each update by
 $\max(0,\cos(\boldsymbol\Delta_k,\bar{\boldsymbol\Delta}))\,n_k$, where
 $\bar{\boldsymbol\Delta}$ is the FedAvg mean. It is not an exact reproduction of that
 paper, whose Algorithm~2 sums pairwise cosine similarities and aggregates the
 top-ranked updates.
 
-\textbf{Coordinate-wise median} \citep{yin2018median} and \textbf{FLTrust}
-\citep{cao2021fltrust} were defined for complete update vectors; we adapt both to the
+\textbf{Coordinate-wise median} \cite{yin2018median} and \textbf{FLTrust}
+\cite{cao2021fltrust} were defined for complete update vectors; we adapt both to the
 packet masks. The median takes, for each parameter, the median of the delivered
 values only (the lower middle value when their number is even). FLTrust computes a
 root update $\mathbf{r}$ on $\mathcal{D}_0$ with as many local steps as the median
@@ -209,7 +209,7 @@ about 78 root optimizer steps per cell-round, matching the median client budget.
 CCRA and its variants instead train the same root set for one epoch,
 $\lceil500/64\rceil=8$ steps. The root training budgets are therefore unequal.
 
-\textbf{Base-paper erasure rules.} The base paper \citep{shirvanimoghaddam2022erroneous}
+\textbf{Base-paper erasure rules.} The base paper \cite{shirvanimoghaddam2022erroneous}
 models each upload as erased or received and compares two server rules: average only
 the fresh updates received in the round (its Eq.~(4)), or reuse the last local
 parameters received from a client whose fresh update is missing (its Eq.~(5)). We
@@ -301,7 +301,7 @@ so the drift vanishes where
   e\,\mathbb{E}\bigl[(b-T^\star)^+\bigr] = \mathbb{E}\bigl[(T^\star-b)^+\bigr].
   \label{eq:fixed-point}
 \end{equation}
-This balance is an expectile condition \citep{newey1987expectile}: dividing by $1+e$
+This balance is an expectile condition \cite{newey1987expectile}: dividing by $1+e$
 gives $q\,\mathbb{E}[(b-T^\star)^+]=(1-q)\,\mathbb{E}[(T^\star-b)^+]$ with
 $q=e/(1+e)$, the first-order condition that defines the $q$-expectile of $b$. Our
 contribution is to apply this relationship to the reputation rule.
