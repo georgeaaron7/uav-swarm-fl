@@ -60,7 +60,8 @@ Path & Contents \\
 \texttt{tests/} & Automated simulator, coordinator and analysis tests \\
 \texttt{run\_context\_study.py} & Plans and runs the \NumRuns-run controlled study \\
 \texttt{analyze\_context\_study.py} & Prespecified analysis with paired bootstrap \\
-\texttt{results/context\_study/} & Run-level CSV and analysis of the controlled study \\
+\texttt{results/context\_study/} & Committed summary CSV and analysis of the controlled study \\
+\texttt{results/context\_final/} & Local output of the final-profile reproduction command \\
 \texttt{results/base\_paper\_comparison/} & Compact evidence, paired estimates and validation of the 240-run follow-up \\
 \texttt{scripts/make\_paper\_figures.py} & Builds every figure, table and number in the paper and this report \\
 \texttt{paper/} & Manuscript in IEEE letter format \\
@@ -69,31 +70,38 @@ Path & Contents \\
 \end{tabularx}
 \end{table}
 
-The main steps are:
-\begin{enumerate}
-\item Install the dependencies: \texttt{pip install -r requirements.txt}.
-\item Prepare CIFAR-10: \texttt{python prepare\_data.py}.
-\item Convert the DeepSense Scenario~23 download:\\
-  \texttt{python scripts/prepare\_deepsense23.py /path/to/Scenario23}\\
-  \texttt{\ \ --out data/channel\_traces/deepsense23.npz}.
-\item Run the study (720 GPU runs):
-  \texttt{python run\_context\_study.py --profile final --device cuda --parallel 4}.
-\item Analyse it: \texttt{python analyze\_context\_study.py results/context\_final}.
-\item Rebuild all figures and numbers: \texttt{python scripts/make\_paper\_figures.py}.
-\item Build the documents: in \texttt{paper/} and in \texttt{report/}, run
-  \texttt{tectonic -X compile main.tex}, or pdfLaTeX with BibTeX.
-\end{enumerate}
-Steps~6 and~7 alone regenerate the figures and documents from the committed results.
+Run these commands from the repository root. The final profile writes to
+\path{results/context_final/}. The published compact summaries are in
+\path{results/context_study/}.
+\begin{lstlisting}
+pip install -r requirements.txt
+python prepare_data.py
+python scripts/prepare_deepsense23.py /path/to/Scenario23 --out data/channel_traces/deepsense23.npz
+python run_context_study.py --profile final --device cuda --parallel 4 --out-dir results/context_final
+python analyze_context_study.py results/context_final
+\end{lstlisting}
+To rebuild figures and numbers from the committed summaries, then compile the
+letter and report, use:
+\begin{lstlisting}
+python scripts/make_paper_figures.py
+(cd paper && tectonic -X compile main.tex)
+(cd report && tectonic -X compile main.tex)
+\end{lstlisting}
+These last three commands require no new training. To plot a fresh reproduction
+instead, pass \lstinline|--csv results/context_final/context_runs.csv| to the
+figure script; its default is the committed
+\texttt{results/context\_study/context\_runs.csv}.
+
 The completed base-paper follow-up uses frozen training revision
 \texttt{ad06055} and the same runner with
-\texttt{--aggs bp\_fresh bp\_reuse}. Its full checkpoints, coordinator audit and
+\lstinline|--aggs bp_fresh bp_reuse|. Its full checkpoints, coordinator audit and
 prepared inputs remain local. Compact publication checks source/data fingerprints,
 terminal histories and all 120 paired client-partition summaries. Recompute the
 follow-up intervals from the committed summary data without training:
-\begin{quote}\small
-\texttt{python scripts/analyze\_base\_paper.py --csv}\\
-\texttt{results/base\_paper\_comparison/base\_paper\_runs.csv}
-\end{quote}
-Then repeat steps~6 and~7 above. The result CSV records the final attempt's runtime
+\begin{lstlisting}
+python scripts/analyze_base_paper.py --csv results/base_paper_comparison/base_paper_runs.csv
+\end{lstlisting}
+Then repeat the figure-generation and document-build commands above. The result
+CSV records the final attempt's runtime
 profile and resumed round; an attempt that resumed may include earlier work from a
 different device. The source fingerprints of both studies are retained separately.

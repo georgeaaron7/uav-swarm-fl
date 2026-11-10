@@ -20,8 +20,8 @@ effect. The results have been written up as a manuscript in IEEE letter format.
 \section{Conclusions}
 \begin{enumerate}
 \item Non-IID data reduced FedAvg accuracy from 62.6\% to 60.2\% in the baseline,
-  and a 30\% label-flip attack reduced it by about ten points in the preliminary
-  study.
+  and a 30\% label-flip attack reduced it by 8.9 points on the ideal channel and
+  7.8 points on the jammed channel in the preliminary study (last-five-round means).
 \item None of the four aggregators that judge updates against a trusted reference
   update diverged in its 120 runs (480 runs combined), whereas FedAvg and the
   coordinate-wise median diverged in \DivFedavg{} and \DivMedian{} of 120 runs each.
@@ -41,9 +41,10 @@ effect. The results have been written up as a manuscript in IEEE letter format.
   inconclusive; a clear advantage over FLTrust appeared only at 15\,dB.
 \item Against the base paper, mask-only CCRA was \VsBpAttack{} points more accurate
   than its better erasure rule under attack at 5\,dB (\ci{\VsBpAttackLo}{\VsBpAttackHi}),
-  and \VsBpClean{} points less accurate without attack
-  (\ci{\VsBpCleanLo}{\VsBpCleanHi}): robustness to attackers costs a little accuracy
-  when there are none.
+  with a signed clean contrast of $\VsBpClean$ points (mask-only minus fresh-only;
+  \ci{\VsBpCleanLo}{\VsBpCleanHi}). FLTrust also gains \FltVsBpAttack{} points
+  over fresh-only under attack. This large gain reflects trusted-reference defence;
+  our distinct findings concern masking and the telemetry rule.
 \item Within the base paper's rules, fresh-only exceeds reuse-old by
   \BpCleanGain{} points on clean stressed links
   (\ci{\BpCleanLo}{\BpCleanHi}). The rules diverged in \BpDivFresh/120 and

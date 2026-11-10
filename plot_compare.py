@@ -21,8 +21,8 @@ SCEN_TITLES = {
     "attack_ideal": "30% label-flip, ideal channel",
     "attack_lossy": "30% label-flip + EW-jammed lossy channel",
 }
-AGG_LABELS = {"fedavg": "FedAvg", "cosavg": "CosAvg (base paper)", "ccra": "CCRA (ours)",
-              "ccra_noctx": "CCRA w/o channel context"}
+AGG_LABELS = {"fedavg": "FedAvg", "cosavg": "CosAvg-style baseline", "ccra": "CCRA (early)",
+              "ccra_noctx": "CCRA (early, no context)"}
 COLORS = {"fedavg": "#7f7f7f", "cosavg": "#1f77b4", "ccra": "#d62728", "ccra_noctx": "#ff9896"}
 MALICIOUS, JAMMED = {0, 3, 6}, {2, 5, 9}
 

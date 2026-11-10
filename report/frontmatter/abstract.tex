@@ -1,6 +1,6 @@
 % 3.7: abstract, at most 500 words.
 \FrontChapter{Abstract}
-\thispagestyle{empty}
+\thispagestyle{plain}
 
 Swarms of unmanned aerial vehicles (UAVs) can learn a shared perception model with
 federated learning (FL): each UAV trains on the images it collects and sends only a
@@ -8,7 +8,7 @@ model update to a ground base station. In a tactical setting two problems arise
 together: air-to-ground links lose packets, and some UAVs may be captured and made to
 send poisoned updates. Byzantine-robust aggregation rules were designed for complete
 updates, while work on FL over erroneous links, including our base paper
-(Shirvanimoghaddam et al., IEEE Communications Letters, 2022), assumes honest
+by Shirvanimoghaddam et al.~\cite{shirvanimoghaddam2022erroneous}, assumes honest
 clients. This project studies both problems in one system.
 
 We built a PyTorch simulation of hierarchical FL over a UAV swarm. Ten UAVs holding
@@ -31,7 +31,8 @@ aggregators, a clean setting and three attacks, three channel conditions and
 \NumSeeds{} seeds. The primary telemetry stress interaction was $\PrimGain$ percentage
 points (95\% paired-seed bootstrap interval \ci{\PrimLo}{\PrimHi}), beyond the
 prespecified $-1$ point threshold. Under attack at the 5\,dB anchor, erasure masking
-improved accuracy by \MaskGain{} points (\ci{\MaskLo}{\MaskHi}), whereas adding
+improved accuracy by \MaskGain{} points over the zero-filled no-context baseline
+(\ci{\MaskLo}{\MaskHi}), whereas adding
 telemetry changed it by \TelGain{} points (\ci{\TelLo}{\TelHi}), accompanied by a rise
 in honest-update rejection from \RejMask\% to \RejCcra\%. A constant-evidence drift
 analysis suggests why: when rewards are slowed but penalties are not, the equilibrium
@@ -41,7 +42,10 @@ diverged in \DivFedavg{} and \DivMedian{} of their 120 runs.
 
 Against the base paper, mask-only aggregation was \VsBpAttack{} points more accurate
 than its better rule, fresh-only, under attack at 5\,dB (\ci{\VsBpAttackLo}{\VsBpAttackHi}),
-at a cost of \VsBpClean{} points without attack (\ci{\VsBpCleanLo}{\VsBpCleanHi}).
+with a signed clean contrast of $\VsBpClean$ points
+(mask-only minus fresh-only; \ci{\VsBpCleanLo}{\VsBpCleanHi}). FLTrust also gains
+\FltVsBpAttack{} points over fresh-only under attack; the large gain reflects
+trusted-reference defence, rather than a contribution unique to CCRA.
 The base paper's rules diverged in \BpDivFresh/120 and \BpDivReuse/120 runs,
 including every sign-flip run, and fresh-only beat reuse-old by \BpCleanGain{} points
 on clean stressed links. This follow-up ran on Windows GPU workers; on the ideal
