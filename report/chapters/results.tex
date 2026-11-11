@@ -9,60 +9,60 @@ Result tables and figures are generated from committed run-level data by the
 scripts described in Appendix~B.
 
 \section{Implementation and Verification}
-The framework is written in Python with PyTorch. Runs are configured by a single
-dataclass, and every run stores its full configuration, per-round history and final
-model. Automated tests cover data partitioning, the
+Each run of the Python/PyTorch simulator saves the configuration dataclass, the
+per-round history and the final model. Automated tests cover data partitioning, the
 FedAvg update, attack construction, every robust aggregator, the base paper's two
 erasure rules, the hierarchical server, handover logic, trace loading and the
-analysis code. A code review of the
-hierarchical extension found three problems, which were fixed before the controlled
-study was run: the reputation rule shielded jammed attackers, the no-context
-ablation still read packet delivery ratios, and FLTrust's root update took too few
-training steps.
+analysis code. Review of the hierarchical simulator led to three corrections
+before the controlled runs. A low delivery ratio had dampened both rewards and
+penalties, so we made the penalty independent of telemetry. We also removed the
+delivery-ratio input from no-context CCRA and matched the number of FLTrust root
+optimizer steps to the median local step count in each cell.
 
 \section{Experimental Protocol}
 \subsection{Preliminary Study}
-The first comparison used the synthetic jammed channel with one BS, a 30\% label-flip
-attack, 30 rounds and a single seed. It compared FedAvg, the CosAvg-style baseline and
-an early version of CCRA under four scenarios: no attack or attack, each with an ideal or a jammed
-lossy channel. Its purpose was to check that the pipeline worked and to estimate
-effect sizes.
+The preliminary runs checked the simulator end to end and provided initial
+estimates of the accuracy differences. At one base station, FedAvg, the
+CosAvg-style baseline and early CCRA each ran for 30 rounds with the same seed.
+For each method, we crossed clean training and 30\% label flipping with ideal
+delivery and synthetic jamming.
 
 \subsection{Controlled Ablation Study}
 \label{sec:protocol}
-The main study used a full factorial design: six aggregators (FedAvg, median,
-FLTrust and the three CCRA variants), four attack settings (clean, sign flip, ALIE,
-IPM), three channel conditions (ideal; trace at 15\,dB; trace at 5\,dB) and
-\NumSeeds{} seeds, for \NumRuns{} runs of 100 rounds each with $K=10$, $B=3$, $E=5$
-and $\alpha=0.5$. Within a seed, the data split, initial model, attacker identities
-and trace positions are identical across methods, so every comparison is paired.
-There is no jammer and no additive noise on delivered parameters. The training set
-is the 49{,}500 client images plus the disjoint 500-image root set. The runs were
-executed on an NVIDIA A100 GPU.
+Each of the \NumSeeds{} seeds contributes 72 runs. We test FedAvg, the median,
+FLTrust and three CCRA variants in every combination of the four attack settings
+(clean, sign flip, ALIE and IPM) and three channels (ideal, 15\,dB trace and
+5\,dB trace). For each seed we reuse the client partitions, initial weights,
+attacker identities and trace positions across methods. This gives \NumRuns{}
+matched runs on an NVIDIA A100.
 
-The analysis plan was fixed before any run:
-\begin{itemize}
-\item The \emph{primary} quantity is the telemetry effect under stress,
-  $[(\text{CCRA}-\text{mask-only})_{5\,\mathrm{dB}}-(\text{CCRA}-\text{mask-only})_{15\,\mathrm{dB}}]$,
-  averaged over the three attacks within each seed.
-\item An effect counts as practically meaningful only if its 95\% interval lies
-  entirely beyond $\pm1$ percentage point.
-\item Intervals are percentile bootstraps over seeds with 10{,}000 resamples; rounds
-  and attack cells are not treated as independent samples.
-\item A run that diverges numerically is scored at chance accuracy (10\%) instead of
-  being dropped, so unstable methods cannot look better by losing their worst runs.
-\item All other contrasts are exploratory and are not adjusted for multiple
-  comparisons.
-\end{itemize}
+Each run lasts 100 rounds with ten UAVs, three base stations and synchronization
+every five rounds. The client partitions contain 49{,}500 images in total
+($\alpha=0.5$). A separate 500 images form the trusted root set. The channels
+operate without a jammer or additive noise on delivered parameters.
 
-\subsection{Comparison with the Base Paper}
+Before launching the runs, we specified how to measure the extra effect of
+telemetry at the weaker trace anchor. For each seed, we compute the
+full-minus-mask-only accuracy gap at each anchor and average the following
+difference over sign flip, ALIE and IPM:
+\[
+  (\text{CCRA}-\text{mask-only})_{5\,\mathrm{dB}}
+  -(\text{CCRA}-\text{mask-only})_{15\,\mathrm{dB}}.
+\]
+A practically meaningful effect requires the full 95\% interval to lie below
+$-1$ point or above $+1$ point. We use percentile intervals from 10{,}000
+bootstrap resamples of the paired seeds, the unit of replication. Numerical
+divergence contributes 10\% accuracy, the chance level for the ten-class task.
+The remaining contrasts are exploratory and use unadjusted intervals.
+
+\subsection{Follow-up on the Base Paper's Erasure Rules}
 \label{sec:bp-protocol}
-The base paper's two erasure rules (Section~\ref{sec:method-baselines}), fresh-only
-and reuse-old, are run as a separate comparison on the same seeds, attacker
-identities, channel conditions and attack settings as the controlled study:
-$2\times4\times3\times10=240$ runs. They are not added to the prespecified matrix, and
-no parameter is tuned on its seeds. All \BpNumRuns{} runs are now complete and
-validated. Both rules use the same 49{,}500 client images and reserve the same
+For the follow-up we substitute fresh-only and reuse-old
+(Section~\ref{sec:method-baselines}) for the six ablation methods. The fixed
+comparison retains the original seeds, attacker identities, three channel
+conditions and four attack settings. The two rules contribute 120 runs each,
+for a validated total of \BpNumRuns{} outside the prespecified ablation. The
+follow-up seeds were used for evaluation without parameter tuning. Both rules use the same 49{,}500 client images and reserve the same
 disjoint 500 root images, although neither uses a trusted reference update.
 
 The follow-up was executed through SwarmCompute on Windows NVIDIA workers. Final
@@ -167,21 +167,23 @@ These results were encouraging, but they could not support a claim:
 \item the reputation rule was revised when the system was extended to hierarchical
   FL, so the early CCRA is not the exact version evaluated in the controlled study.
 \end{itemize}
-These limitations defined the controlled study.
+The paired ablation isolates the effects of masking and telemetry.
 
 \section{Controlled Ablation Study Results}
 \label{sec:controlled}
-All \NumRuns{} runs finished and were validated. The trace delivered on average
-\PdrTrace\% of packets at 15\,dB and \PdrStress\% at 5\,dB.
-The ideal channel uses synthetic random-walk geometry with virtual neighbours
-240\,m from the central BS; trace replay uses neighbours about 14\,m from it.
-The ideal runs average \IdealHandovers{} handovers per run, compared with
-\TraceHandovers{} over the two trace settings. Ideal-versus-trace differences
-therefore include geometry and mobility changes as well as packet delivery.
+Validation accounted for all \NumRuns{} planned outcomes, including numerical
+divergences. The trace delivered on average \PdrTrace\% of packets at 15\,dB and
+\PdrStress\% at 5\,dB. The two trace anchors share a geometry with neighbouring
+base stations roughly 14\,m from the central station. The ideal condition instead
+uses random walks and neighbours 240\,m from the centre. The change in conditions
+also changes association behaviour: the ideal runs average \IdealHandovers{}
+handovers, compared with \TraceHandovers{} per trace run. Comparisons with the
+ideal setting therefore combine packet delivery, geometry and mobility effects.
 
 \subsection{Stability and Overall Accuracy}
-Table~\ref{tab:outcomes} summarizes every run, and Fig.~\ref{fig:acc} shows accuracy
-under attack across the three channel conditions.
+Table~\ref{tab:outcomes} pools all conditions to show divergence counts and overall
+accuracy. Figure~\ref{fig:acc} restricts the accuracy comparison to attacked runs
+and groups them by channel.
 
 \begin{table}[ht]
 \centering
@@ -210,8 +212,8 @@ result down by attack.
 
 \begin{table}[ht]
 \centering
-\caption{Mean final accuracy (\%) by attack, method and channel. Best value in each
-block and column in bold.}
+\caption{Final test accuracy averaged over seeds (\%). Within each attack setting,
+bold marks the highest mean for each channel.}
 \label{tab:per-attack}
 \small
 \input{generated/table_per_attack}
@@ -245,12 +247,11 @@ pulls the average towards zero; ignoring them avoids all three effects.
 
 \textbf{Telemetry in the reputation.} The prespecified primary estimate, the
 telemetry effect at 5\,dB minus that at 15\,dB, is $\PrimGain$ points
-(\ci{\PrimLo}{\PrimHi}). The whole interval lies below the $-1$ point threshold, so
-by the rule fixed in advance the telemetry mechanism has a meaningful
-\emph{negative} effect that grows as the link weakens. In absolute terms, at 5\,dB
-CCRA minus mask-only is $\TelGain$ points (\ci{\TelLo}{\TelHi}): \AccCcraStress\%
-against \AccMaskStress\%. Telemetry also slightly reduces attacked accuracy on
-the ideal channel: CCRA minus mask-only is $\TelIdeal$ points despite no erasures.
+(\ci{\PrimLo}{\PrimHi}). Even the upper bound falls below $-1$ point, meeting the
+prespecified criterion for an additional accuracy penalty at the weaker anchor.
+At 5\,dB, full CCRA scored \AccCcraStress\% and mask-only scored
+\AccMaskStress\%, a gap of $\TelGain$ points (\ci{\TelLo}{\TelHi}). In the
+attacked ideal runs, where delivery is complete, the gap is $\TelIdeal$ points.
 
 \textbf{Both together.} Full CCRA against no-context combines a gain and a loss; at
 5\,dB the net effect is small and its interval includes the equivalence region. The
@@ -293,8 +294,8 @@ attributed to memory alone. In an exploratory paired comparison, mask-only was
 (\ci{\VsFltTraceLo}{\VsFltTraceHi}), while the 5\,dB comparison was inconclusive
 ($\VsFltStress$ points, \ci{\VsFltStressLo}{\VsFltStressHi}): the interval supports
 neither a difference nor practical equivalence, since it is not entirely inside
-$\pm1$ point. One reading consistent with the mechanism above is that reputation
-memory helps on good links and stops helping on weak ones.
+$\pm1$ point. The different root training budgets and aggregation rules also
+limit what this comparison can establish about reputation memory.
 
 \section{Completed Base-Paper Comparison}
 \label{sec:bp-results}
@@ -344,48 +345,45 @@ fresh-only, a paired gain of \VsBpAttack{} percentage points (95\% CI
 \ci{\VsBpAttackLo}{\VsBpAttackHi}). Without attack at 5\,dB, fresh-only is ahead,
 \BpCleanStressFresh\% against \AccMaskCleanStress\%, a signed difference of $\VsBpClean$ points
 (\ci{\VsBpCleanLo}{\VsBpCleanHi}); the signed contrast is mask-only minus fresh-only.
-The large attacked gain reflects the use of a trusted-reference defence, also
-available to FLTrust, whose gain over fresh-only is \FltVsBpAttack{} points.
-It is not a masking-only gain: fresh-only already averages delivered coordinates.
-These comparisons do not isolate the root reference from other defence differences.
-The contributions specific to this study are the \MaskGain-point masking effect
-against zero-filled no-context aggregation and the telemetry ablation and drift analysis.
+FLTrust, which also uses a trusted reference, scored \FltVsBpAttack{} points
+above fresh-only in the attacked 5\,dB comparison. Fresh-only already restricts
+its average to delivered coordinates. Both contrasts also include differences
+in scoring and weighting. The controlled comparison with zero-filled no-context
+CCRA estimates the effect of masking separately.
 
 The two studies ran on different hardware (an A100 against RTX~2060 and GTX~1650
 workers) and software versions, so these contrasts are cross-study and exploratory.
-An ideal-channel cross-check describes agreement in that setting; it does not
-bound hardware effects on stressed channels. On the ideal channel nothing is erased,
-so fresh-only reduces exactly to FedAvg, which the controlled study also ran on the
-same seeds. Across the \XcheckRuns{} ideal-channel runs that did not diverge, the
-two studies agree within \XcheckMax{} points per run (mean \XcheckMean{} points),
-and both diverge in exactly the same runs. That is far smaller than the
-\VsBpAttack-point gap under attack.
+Complete delivery makes fresh-only equivalent to FedAvg, giving us a cross-check
+on the ideal runs. The same runs diverged in both studies. For the \XcheckRuns{}
+remaining ideal pairs, the absolute accuracy difference averaged \XcheckMean{}
+points and reached at most \XcheckMax{} points. This check measures agreement only
+under complete delivery. The hardware contribution to the 5\,dB comparison
+remains unmeasured.
 
-Operational interruptions were kept separate from numerical divergence. Clean
-checkpointed stops that had been mislabeled as application failures were requeued
-after checkpoint verification; Windows progress-file permission failures received
-bounded retries with unchanged scientific configurations. Failed attempts remain in
-the coordinator audit history. The final validation contains one accepted terminal
-result per planned job, with no missing jobs. Recovery preserves saved state and
-random generators but does not establish bitwise reproducibility across GPUs.
+The coordinator recovered interrupted jobs separately from the divergence analysis.
+It verified the checkpoints before requeuing clean stops recorded as application
+failures. Windows progress-file permission errors triggered bounded retries with
+the same experiment settings. The audit history retains the failed attempts, and
+validation accepted exactly one terminal record for each planned job. A resumed job
+restores the saved training and random-generator states. Bitwise agreement between
+GPUs was outside the scope of that validation.
 
 \section{Discussion}
 \subsection{What the Results Show}
 \begin{enumerate}
-\item All four root-referenced methods avoided divergence in their 120 runs each,
-  while FedAvg and the median diverged in some runs. This association does not
-  isolate the contribution of the root set.
-\item Among channel-aware mechanisms, erasure masking is simple; under attack its
-  15\,dB accuracy contrast lies within the prespecified equivalence region, and it
-  helps substantially on a weak link. No computational or communication overhead was
-  measured.
-\item The intuitive idea of letting link quality soften judgement backfired. The
-  analysis of Section~\ref{sec:fixed-point} suggests a structural reason: an
-  asymmetric reputation update can bias trust downwards for the UAVs it was meant to
-  protect.
-\item The separate base-paper comparison shows that fresh-only averaging can exceed
-  reuse-old under stressed packet loss. Both erasure rules diverged under sign flip,
-  illustrating why erasure handling alone is insufficient for this threat model.
+\item FLTrust and the three CCRA variants completed all 480 runs without
+  numerical divergence. The root set is one of several design choices that
+  distinguish these methods from FedAvg and the median.
+\item In the attacked trace runs, masking adds little at 15\,dB, where nearly
+  every packet arrives. At 5\,dB, it raises accuracy by \MaskGain{} points.
+  The study measured accuracy and stability. The computational and communication
+  costs of masking remain unmeasured.
+\item At 5\,dB, telemetry slowed trust recovery while the penalty for a low score
+  stayed the same. The drift calculation in Section~\ref{sec:fixed-point} predicts
+  that this asymmetry lowers equilibrium trust as evidence weakens.
+\item In the erasure-rule follow-up, fresh-only gave higher accuracy at 5\,dB
+  than reuse-old. Every sign-flip run diverged with either rule, even with
+  packet-level erasure handling.
 \end{enumerate}
 
 \subsection{Why a Negative Result Is Useful}
@@ -403,18 +401,21 @@ change.
   The virtual neighbours are about 14\,m from the reference BS (about 28\,m from
   each other). In the separate 60-round channel validation, the median SNR at
   the nominal 5\,dB anchor is 8.6\,dB, not 5\,dB. There are no retransmissions.
-  The trace runs average fewer than one handover, whereas the ideal runs average
-  \IdealHandovers{} with different geometry; channel comparisons therefore include
-  this mobility difference. No claim is made about high-mobility trace replay.
-\item \textbf{Scope of learning task.} One dataset (aerial-transformed CIFAR-10, not
-  genuine UAV imagery), one model, ten UAVs and fixed attack strengths were used.
-\item \textbf{Trust assumptions.} The root set is assumed clean; no trusted execution
-  environment or attestation was implemented or evaluated.
-\item \textbf{Attacker model.} Telemetry is assumed authentic, and adaptive attacks on
-  the reputation itself \cite{liu2026evade} were not tested.
-\item \textbf{Statistics.} Ten seeds give approximate intervals; secondary contrasts
-  are not adjusted for multiple comparisons. Any revised rule must be tested on new
-  seeds, not re-tuned on these ten.
+  The trace replays average \TraceHandovers{} handovers. Comparisons with the
+  ideal condition also reflect the different geometry and association patterns.
+  The effect of frequent handovers in trace replay remains an open question.
+\item \textbf{Scope of learning task.} The experiment uses one CNN trained on
+  transformed CIFAR-10 images as a proxy for aerial imagery. The swarm size and
+  attack strengths are fixed.
+\item \textbf{Trust assumptions.} The simulation gives each BS access to a root
+  set assumed to be clean. It leaves trusted execution and attestation to a future
+  implementation.
+\item \textbf{Attacker model.} The comparison assumes authentic telemetry and
+  fixed poisoning strategies. An adaptive attacker that targets trust over
+  multiple rounds, as studied by Liu et al.~\cite{liu2026evade}, is outside this
+  design.
+\item \textbf{Statistics.} Intervals reflect ten paired seeds. Secondary contrasts
+  use unadjusted intervals. Phase~II confirmation requires fresh seeds.
 \item \textbf{Execution environment.} The A100 ablation and Windows-worker follow-up
   used different GPU/software profiles and source fingerprints. Checkpoint recovery
   was verified, but hardware-controlled cross-study effects and runtime speedups

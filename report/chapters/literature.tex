@@ -2,21 +2,23 @@
 \label{ch:lit}
 
 \section{Federated Learning}
-McMahan et al.~\cite{mcmahan2017fedavg} introduced federated averaging
-(FedAvg). In each round the server sends the global model to a set of clients, each
-client runs a few epochs of stochastic gradient descent on its local data, and the
-server replaces the global model by the average of the returned models, weighted by
-local dataset size. FedAvg works well when client data are independent and
-identically distributed (IID). When each client sees a skewed mix of classes, local
-models drift apart and accuracy falls. Hsu et al.~\cite{hsu2019noniid}
-proposed sampling each client's class proportions from a Dirichlet distribution with
-concentration $\alpha$, which has become the standard way to control the degree of
-non-IID skew in experiments; we use $\alpha=0.5$.
+FedAvg provides the baseline for comparing aggregation rules in this project.
+In the original algorithm, participating devices start from the same model and run
+local stochastic gradient descent. The server combines their resulting parameters
+in proportion to the number of examples at each device
+\cite{mcmahan2017fedavg}.
 
-Hierarchical FL adds an intermediate layer of edge servers. Clients send updates to a
-nearby edge server, which aggregates them frequently, and the edge servers
-synchronize with each other less often \cite{abad2020hfl}. This matches a UAV swarm
-served by several ground base stations, each covering part of the operating area.
+A sample-count weight says how much data a device holds. It says little about which
+classes the device sees. Hsu et al.~\cite{hsu2019noniid} varied class imbalance
+with Dirichlet sampling and observed lower FedAvg accuracy on CIFAR-10 as client
+label distributions became more dissimilar. In our simulator, each class is
+distributed across the UAVs using a Dirichlet draw with $\alpha=0.5$.
+
+Abad et al.~\cite{abad2020hfl} separate aggregation within each cell from
+network-wide synchronization. Their small-cell base stations combine updates from
+their own devices and periodically coordinate through the macro base station.
+In this project, ground base stations serve as the cell aggregators, with one
+swarm-wide synchronization for every five local rounds in the controlled study.
 
 \section{Byzantine-Robust Aggregation}
 A single malicious client can move the FedAvg average arbitrarily far, so a large
@@ -48,26 +50,28 @@ standard deviation, which is enough to evade distance-based rules. Inner-product
 manipulation (IPM) \cite{xie2019ipm} sends a negative multiple of the honest mean so
 that the aggregate's inner product with the true gradient becomes negative.
 
-Reputation-based defences keep a trust score for each client across rounds, so that
-an attacker caught once stays down-weighted. They suit swarms, whose members persist
-for a whole mission, but recent work shows that adaptive attackers can learn to evade
-them: Liu et al.~\cite{liu2026evade} model the attacker's choice between benign and malicious
-rounds as a partially observable Markov decision process over the server's hidden
-trust score, and suppress accuracy under reputation defences that stop static attacks.
+Because the same UAVs participate across rounds in our simulator, a base station
+can use their earlier updates when assigning trust. This history also gives an
+adaptive adversary a way to manage its reputation. Liu et al.~\cite{liu2026evade}
+formulate the decision to send a benign or malicious update as a partially
+observable Markov decision process. In their experiments, an attacker able to
+vary its behaviour across rounds evaded reputation-based defences and reduced
+model accuracy. The controlled study in this report uses fixed attack settings.
 
-\section{Federated Learning over Unreliable Wireless Links}
-In wireless FL the update itself travels over a noisy channel.
-Shirvanimoghaddam et al.~\cite{shirvanimoghaddam2022erroneous}, the base paper of this project, model each
-device-to-server link as a packet erasure channel: a device's whole update is either
-erased or received, with an erasure probability obtained from the normal
-approximation for short-packet transmission. They compare two server rules, averaging
-only the fresh updates received in a round or reusing a device's last received
-parameters when its fresh update is missing. They prove that, for convex and smooth
-local losses, the reuse rule converges to the same global parameters as error-free
-FL, and observe that with uniformly distributed data the fresh-only rule can converge
-faster. Their model has no adversaries. We adopt the erasure view at packet
-granularity, so that an update can arrive partially, and use both of their rules as
-baselines (Section~\ref{sec:method-baselines}). Barkatsa et al.~\cite{barkatsa2024jamming} consider malicious clients that jam the
+\section{Aggregation with Wireless Erasures}
+Shirvanimoghaddam et al.~\cite{shirvanimoghaddam2022erroneous}, the authors of
+our base paper, ask what the server should aggregate when a device's upload is
+missing. They use the finite-blocklength normal approximation to set the probability
+of losing the entire upload. The server can omit that device for the round or fill
+in its most recently received parameters. The authors prove convergence to the
+error-free solution for reuse-old under conditions on the loss functions,
+step size and erasure probability. Their uniform-data example favours the rule
+that uses only fresh parameters.
+
+Our base-paper comparison adapts both rules to uploads split across several
+packets (Section~\ref{sec:method-baselines}). The server can then receive only
+part of a model update. We also include Byzantine clients, whereas the original
+analysis considers honest clients. Barkatsa et al.~\cite{barkatsa2024jamming} consider malicious clients that jam the
 non-orthogonal multiple access (NOMA) uplink of legitimate ones, and let every client
 choose its transmit power in a Bayesian game with incomplete information about the
 other clients' types. Li et al.~\cite{li2022dpbyz} combine communication efficiency (1-bit

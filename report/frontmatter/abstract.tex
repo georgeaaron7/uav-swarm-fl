@@ -2,60 +2,50 @@
 \FrontChapter{Abstract}
 \thispagestyle{plain}
 
-Swarms of unmanned aerial vehicles (UAVs) can learn a shared perception model with
-federated learning (FL): each UAV trains on the images it collects and sends only a
-model update to a ground base station. In a tactical setting two problems arise
-together: air-to-ground links lose packets, and some UAVs may be captured and made to
-send poisoned updates. Byzantine-robust aggregation rules were designed for complete
-updates, while work on FL over erroneous links, including our base paper
-by Shirvanimoghaddam et al.~\cite{shirvanimoghaddam2022erroneous}, assumes honest
-clients. This project studies both problems in one system.
+Federated learning (FL) allows unmanned aerial vehicles (UAVs) to train a shared
+image classifier by sending model updates to ground stations. Two failures can
+occur in the same round: wireless packet loss and deliberate poisoning by
+Byzantine clients. The base paper studies erasures with honest clients
+\cite{shirvanimoghaddam2022erroneous}. We study erasures and poisoning together.
 
-We built a PyTorch simulation of hierarchical FL over a UAV swarm. Ten UAVs holding
-non-IID, aerial-transformed CIFAR-10 images are served by three base stations, which
-aggregate locally and synchronize every five rounds. Packet erasures follow the
-relative power variation of a measured drone trace (DeepSense~6G Scenario~23),
-replayed around assumed reference signal-to-noise ratio anchors with virtual
-neighbouring base stations. Three UAVs mount sign-flip, ALIE-style or
-inner-product-manipulation attacks. We designed CCRA, a reputation-based aggregator
-that compares each update with a reference computed on a small root dataset and can
-use the channel in two ways: by ignoring lost coordinates (erasure masking) and by
-letting link telemetry slow how fast a UAV regains trust. The base paper's two
-erasure rules, fresh-only averaging and reuse of old updates, are evaluated in a
-separate \BpNumRuns-run follow-up.
+The PyTorch simulator distributes aerial-transformed CIFAR-10 images among ten
+UAVs with different class proportions. Three base stations aggregate locally and synchronize every five rounds.
+The channel replays relative power from DeepSense~6G Scenario~23 around assumed
+signal-to-noise ratio anchors with virtual neighbouring stations. In each attack
+setting, three UAVs use the same poisoning strategy (sign flip, ALIE-style
+perturbation or inner-product manipulation). Our aggregator, CCRA, scores updates
+against a trusted reference. It masks lost coordinates and uses link telemetry
+to slow trust recovery on weak links.
 
-A FedAvg baseline reached 62.6\% (IID) and 60.2\% (non-IID) accuracy, and a
-preliminary single-seed study looked promising for CCRA. To find which part of CCRA
-was responsible, a prespecified, paired study of \NumRuns{} runs crossed six
-aggregators, a clean setting and three attacks, three channel conditions and
-\NumSeeds{} seeds. The primary telemetry stress interaction was $\PrimGain$ percentage
-points (95\% paired-seed bootstrap interval \ci{\PrimLo}{\PrimHi}), beyond the
-prespecified $-1$ point threshold. Under attack at the 5\,dB anchor, erasure masking
-improved accuracy by \MaskGain{} points over the zero-filled no-context baseline
-(\ci{\MaskLo}{\MaskHi}), whereas adding
-telemetry changed it by \TelGain{} points (\ci{\TelLo}{\TelHi}), accompanied by a rise
-in honest-update rejection from \RejMask\% to \RejCcra\%. A constant-evidence drift
-analysis suggests why: when rewards are slowed but penalties are not, the equilibrium
-reputation of an honest UAV on a weak link moves toward the lower tail of its scores.
-None of the four root-referenced aggregators diverged, whereas FedAvg and the median
-diverged in \DivFedavg{} and \DivMedian{} of their 120 runs.
+FedAvg reached 62.6\% with IID data and 60.2\% with non-IID data. After a single-seed
+pilot, we separated masking and telemetry in a prespecified \NumRuns-run study
+spanning six aggregators, four attack settings, three channels and \NumSeeds{} paired
+seeds. The primary telemetry stress interaction was $\PrimGain$ percentage
+points. Its 95\% paired-seed bootstrap interval \ci{\PrimLo}{\PrimHi} lay below
+the prespecified $-1$ point threshold. Under attack at 5\,dB, masking added \MaskGain{}
+points over the zero-filled baseline (\ci{\MaskLo}{\MaskHi}). Adding telemetry
+changed accuracy by $\TelGain$ points (\ci{\TelLo}{\TelHi}) and increased honest-update
+rejection from \RejMask\% to \RejCcra\%. The constant-evidence drift calculation
+shows how asymmetric rewards and penalties can push equilibrium trust toward
+the lower tail of honest scores. The four methods using a trusted reference
+had zero divergences. FedAvg and the median had \DivFedavg{} and \DivMedian{},
+respectively, in 120 runs each.
 
-Against the base paper, mask-only aggregation was \VsBpAttack{} points more accurate
-than its better rule, fresh-only, under attack at 5\,dB (\ci{\VsBpAttackLo}{\VsBpAttackHi}),
-with a signed clean contrast of $\VsBpClean$ points
-(mask-only minus fresh-only; \ci{\VsBpCleanLo}{\VsBpCleanHi}). FLTrust also gains
-\FltVsBpAttack{} points over fresh-only under attack; the large gain reflects
-trusted-reference defence, rather than a contribution unique to CCRA.
-The base paper's rules diverged in \BpDivFresh/120 and \BpDivReuse/120 runs,
-including every sign-flip run, and fresh-only beat reuse-old by \BpCleanGain{} points
-on clean stressed links. This follow-up ran on Windows GPU workers; on the ideal
-channel it matches the A100 study within \XcheckMax{} points per run.
+In the separate \BpNumRuns-run follow-up, the base paper's fresh-only and reuse-old
+rules diverged in \BpDivFresh{} and \BpDivReuse{} of 120 runs, respectively, including
+every sign-flip run. Fresh-only led reuse-old by \BpCleanGain{} points on clean
+5\,dB runs. At 5\,dB under attack, mask-only CCRA and FLTrust led fresh-only by
+\VsBpAttack{} points (\ci{\VsBpAttackLo}{\VsBpAttackHi}) and \FltVsBpAttack{} points,
+respectively. Without attack, the signed mask-only gap was $\VsBpClean$ points
+(\ci{\VsBpCleanLo}{\VsBpCleanHi}). These contrasts combine differences in
+aggregation design and execution environment. The follow-up ran on Windows GPU
+workers. In the ideal-channel cross-check, the runs agreed within \XcheckMax{} points.
 
-The useful channel-aware component is therefore erasure masking, and the reward rule
-must be redesigned before telemetry can help. The results are written up as an
-IEEE letter. Phase~II will revise the reward rule and test it on fresh seeds,
-higher-mobility traces and adaptive attackers, including hardware-controlled
-confirmation of the follow-up contrasts.
+The results support masking under severe packet loss and identify a drawback
+of telemetry-weighted rewards. An IEEE letter manuscript presents these
+findings. Phase~II will revise the reputation rule, test it with fresh seeds,
+higher-mobility traces and adaptive adversaries, and repeat the follow-up
+comparisons on shared hardware.
 
 \textbf{Index Terms :} Federated learning, UAV swarm, Byzantine robustness,
 packet erasure, hierarchical aggregation, reputation.
