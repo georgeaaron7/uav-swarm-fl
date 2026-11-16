@@ -26,7 +26,7 @@
   Nasika~Sasank, Aaron~George, Sachin~Sreekumar~Nair, and Chayan~Bhar%
   \thanks{The authors are with the Department of Electronics and Communication Engineering,
   National Institute of Technology Warangal, Telangana 506004, India.}%
-  \thanks{Code, summary results and the scripts that produce every figure:
+  \thanks{Code, companion project report, summary results and figure scripts:
   \url{https://github.com/sasank-555/uav-swarm-fl}. The raw DeepSense~6G data must be
   obtained from its provider.}%
 }
@@ -51,10 +51,10 @@ telemetry changes it by $\TelGain$\pp{} (\ci{\TelLo}{\TelHi}) relative to mask-o
 accompanied by a rise in honest-update rejection from \RejMask\% to \RejCcra\%. A
 constant-evidence drift analysis suggests that asymmetric trust recovery lowers
 reputation on weak links. In a separate \BpNumRuns-run follow-up on the same seeds,
-mask-only aggregation outperforms the base paper's fresh-only erasure rule by
+mask-only aggregation outperforms the packet-level fresh-only baseline by
 \VsBpAttack\pp{} under attack at 5\,dB (\ci{\VsBpAttackLo}{\VsBpAttackHi}). FLTrust
-also gains \FltVsBpAttack\pp{} over fresh-only, so the large gain reflects shared
-trusted-reference defense. The signed clean contrast is $\VsBpClean$\pp{}
+also gains \FltVsBpAttack\pp{} over fresh-only, consistent with an advantage shared
+by both trusted-reference methods. The signed clean contrast is $\VsBpClean$\pp{}
 (mask-only minus fresh-only; \ci{\VsBpCleanLo}{\VsBpCleanHi}).
 \end{abstract}
 
@@ -64,8 +64,9 @@ Federated learning, UAV swarm, Byzantine robustness, packet erasure, hierarchica
 
 \section{Introduction}
 \IEEEPARstart{U}{AV} swarms exchange model updates through FL~\cite{mcmahan2017fedavg,xiao2021uavswarm},
-but wireless erasures and malicious updates can coexist. Erasure rules average
-fresh updates or reuse stale ones~\cite{shirvanimoghaddam2022erroneous}; Krum,
+but wireless erasures and malicious updates can coexist. Shirvanimoghaddam
+et al.~\cite{shirvanimoghaddam2022erroneous} compare skipping missing uploads with
+substituting the client's last received model; Krum,
 median and FLTrust address Byzantine clients with complete vectors~\cite{blanchard2017krum,yin2018median,cao2021fltrust}.
 Related work covers analog over-the-air Byzantine aggregation~\cite{fan2026uavbyz,yao2025fedsac},
 anti-jamming~\cite{barkatsa2024jamming} and attacks on reputation~\cite{liu2026evade}.
@@ -79,7 +80,8 @@ Our contributions are:
 \item We model hierarchical UAV-swarm FL whose uplink packet erasures are driven by
   a measured DeepSense~6G drone received-power trace~\cite{alkhateeb2023deepsense,charan2025drone},
   with BS association, handover and model-poisoning attackers.
-\item We propose an erasure-aware reputation aggregator and isolate its two
+\item We extend FLTrust's trusted-reference design~\cite{cao2021fltrust} with
+  an erasure-aware reputation aggregator and isolate its two
   channel-aware mechanisms, erasure masking and telemetry-weighted reputation, in a
   prespecified, paired \NumRuns-run simulation study.
 \item We identify the zero-drift equilibrium of the reputation update as an expectile
@@ -127,10 +129,10 @@ disjoint from all UAV data and assumed clean, on which it computes a reference u
 $\mathbf{r}_b^t$ each round, as in FLTrust~\cite{cao2021fltrust}.
 
 \subsection{Erasure channel}
-An update is split into packets of $L$ parameters. The uplink SNR $\gamma_k^t$ of UAV
-$k$ follows the relative variation of a measured drone received-power
-sequence~\cite{alkhateeb2023deepsense,charan2025drone}, replayed around an assumed
-reference SNR $\bar\gamma$ and adjusted for the 3-D distance to each virtual BS.
+An update is split into packets of $L$ parameters. To simulate uplink SNR $\gamma_k^t$,
+we replay relative received-power changes from DeepSense~6G Scenario~23%
+~\cite{alkhateeb2023deepsense,charan2025drone} around an assumed SNR $\bar\gamma$,
+with a correction for the 3-D distance to each virtual BS.
 Conditional on the link state, packets are lost independently, all parameters of a
 packet sharing one erasure, with probability
 \begin{equation}
@@ -164,8 +166,8 @@ $\mathbf{m}=1$. Each BS runs the following steps (index $t$ dropped).
 $\tilde{\boldsymbol\Delta}_k$, scale the update by $s_k=\min(1,\mathrm{med}_j\,\rho_j/\rho_k)$
 (regularized for $\rho_k=0$), which limits the effect of large-norm updates.
 
-\emph{2) Masked similarity.} Compare each update with the root update on delivered
-coordinates only, which removes the zero-fill artifact of lost packets:
+\emph{2) Masked similarity.} We adapt FLTrust's cosine comparison with the root
+update~\cite{cao2021fltrust} by restricting both vectors to delivered coordinates:
 $c_k=\cos\bigl(\mathcal{S}(s_k\tilde{\boldsymbol\Delta}_k;\mathbf{m}_k),\mathcal{S}(\mathbf{r};\mathbf{m}_k)\bigr)$,
 with $c_k=0$ for an empty mask or a zero vector.
 
@@ -281,10 +283,12 @@ contrast (CCRA minus mask-only at 5\,dB minus that at 15\,dB) and 1\pp{} thresho
 were prespecified. Intervals use 10{,}000 percentile bootstrap resamples over seeds;
 other contrasts are exploratory, without multiplicity adjustment.
 
-A separate exploratory \BpNumRuns-run follow-up tests packet-level fresh-only and
-reuse-old rules~\cite{shirvanimoghaddam2022erroneous} on matched seeds 41--50.
-Fresh-only averages delivered coordinates; reuse-old fills erasures from each
-client's last received parameters. Both retain the unused 500-image root reserve.
+A separate exploratory \BpNumRuns-run follow-up adapts the whole-upload rules in
+Eqs.~(4) and (5) of Shirvanimoghaddam et al.~\cite{shirvanimoghaddam2022erroneous}
+to packet erasures on matched seeds 41--50. Fresh-only averages each delivered
+coordinate by client sample count; reuse-old fills gaps from that client's last
+received parameter values. The original convergence analysis assumes honest
+clients. Both baselines retain the unused 500-image root reserve.
 
 \begin{figure}[t]
 \centering
@@ -354,9 +358,9 @@ isolate memory. These descriptive rates do not establish causality.
 Under attack at 5\,dB, mask-only attains \AccMaskStress\% against
 \BpAttackStressFresh\% for the better base-paper rule, fresh-only: a paired gain of
 \VsBpAttack\pp{} (\ci{\VsBpAttackLo}{\VsBpAttackHi}). FLTrust also gains
-\FltVsBpAttack\pp{} over fresh-only. This large gain reflects trusted-reference
-defense shared with FLTrust; fresh-only already uses delivered-coordinate averaging.
-It does not isolate masking or the root reference from all other rule differences.
+\FltVsBpAttack\pp{} over fresh-only. The gains are consistent with a benefit from
+the shared trusted reference, though the comparison also changes other parts of
+the rule. Fresh-only already averages over delivered coordinates.
 The signed clean contrast is $\VsBpClean$\pp{} (\ci{\VsBpCleanLo}{\VsBpCleanHi}).
 Fresh-only and reuse-old diverged in \BpDivFresh/120 and \BpDivReuse/120 runs,
 including every sign-flip run; their clean 5\,dB contrast is \BpCleanGain\pp{}.
@@ -376,7 +380,7 @@ adaptive reputation attacks~\cite{liu2026evade} are untested.
 \label{sec:conclusion}
 Masking improves attacked accuracy; telemetry-weighted reputation rejects more
 honest updates and hurts weak-link performance. The large gain over fresh-only
-reflects trusted-reference defense shared with FLTrust. Our distinct findings are
+is also seen with FLTrust, which shares the trusted reference. Our distinct findings are
 the masking ablation and telemetry analysis. Future work will revise the reward
 rule and test fresh seeds, stronger mobility and adaptive attackers.
 
