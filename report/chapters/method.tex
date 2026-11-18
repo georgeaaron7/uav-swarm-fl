@@ -114,14 +114,15 @@ $\bar\gamma=5$\,dB, a weak link. They replay identical trajectories, so only the
 link quality differs.
 
 \subsection{Packet Erasures}
-In both models, conditional on the current link state, packets are lost
-independently; all $L$ parameters of a packet share one erasure. Each packet is lost
-with probability
+Both channel models draw a separate erasure event for each packet, conditional on
+the current link state. A single draw determines whether all $L$ parameters in
+that packet are available to the BS. The erasure probability is
 \begin{equation}
   p_k = \frac{1}{1+\exp\bigl(a(\gamma_k-\gamma_{\mathrm{th}})\bigr)},
 \end{equation}
-with $a=1$ and $\gamma_{\mathrm{th}}=3$\,dB. An update whose transmission time at
-the Shannon rate exceeds the 2\,s round deadline is dropped entirely. The BS
+with $a=1$ and $\gamma_{\mathrm{th}}=3$\,dB. For the drop policy used in the controlled study, the BS discards the entire
+upload if its estimated transmission time, computed at the Shannon rate, exceeds
+2\,s. The BS
 therefore receives $\tilde{\boldsymbol\Delta}_k=\mathbf{m}_k\odot\boldsymbol\Delta_k$,
 where the mask $\mathbf{m}_k$ is 1 for delivered coordinates and 0 elsewhere. The BS
 also records link telemetry for each UAV: SNR, packet delivery ratio (PDR), long-run
@@ -231,17 +232,17 @@ steps every round.
 \item \textbf{Norm clipping.} Let $\rho_k$ be the RMS of the delivered entries of
   $\tilde{\boldsymbol\Delta}_k$ and scale the update by
   $s_k=\min(1,\ \mathrm{med}_j\rho_j/\rho_k)$, with a small constant added to
-  $\rho_k$ so that a zero update is handled. This limits the effect of large-norm
-  updates.
+  $\rho_k$ to avoid division by zero. For nonzero updates above the median RMS,
+  the scaling caps their delivered RMS at that median.
 \item \textbf{Masked similarity.}
   $c_k=\cos\bigl(\mathcal{S}(s_k\tilde{\boldsymbol\Delta}_k;\mathbf{m}_k),\
   \mathcal{S}(\mathbf{r};\mathbf{m}_k)\bigr)$, where $\mathcal{S}(\cdot;\mathbf{m})$
-  keeps only the coordinates with $\mathbf{m}=1$, and $c_k=0$ for an empty mask or a
-  zero vector. This removes the artifact of lost packets counted as zeros; it does not
-  guarantee that the missing coordinates never bias the comparison.
+  selects the same delivered entries from both the client and reference vectors.
+  The score is set to zero when the selected set is empty or either selected
+  vector has zero norm. Its value can still depend on which packets arrived.
 \item \textbf{Behaviour score.} $b_k=\mathrm{clip}\bigl(c_k/\mathrm{med}_{j:c_j>0}c_j,\
-  0,\ 1\bigr)$. Updates pointing away from the reference get $b_k=0$, and all scores
-  are 0 if no $c_j$ is positive.
+  0,\ 1\bigr)$. Only a positive cosine can give a positive behaviour score.
+  If there are no positive cosines in the cell, every score is zero.
 \item \textbf{Reputation.} With memory $\beta\in[0,1)$, initial trust 1 and evidence
   $e_k\in[0,1]$,
   \begin{equation}
@@ -249,12 +250,14 @@ steps every round.
     \eta_k=\begin{cases}(1-\beta)\,e_k, & b_k>T_k,\\ 1-\beta, & b_k\le T_k.\end{cases}
     \label{eq:reputation}
   \end{equation}
-  Penalties apply at full rate, so an attacker cannot hide by dropping its own
-  packets; only rewards are slowed on poor links.
-\item \textbf{Gating and averaging.} UAVs with $T_k<\tau$ are excluded. The others get
-  weight $\omega_k=n_kT_k$, discounted for staleness, and each coordinate is averaged
-  only over the UAVs that delivered it (a coordinate with no accepted weight gets a
-  zero update):
+  A smaller $e_k$ slows trust recovery when $b_k>T_k$. For a received update
+  with $b_k<T_k$, the same penalty applies regardless of $e_k$. The rule was
+  designed to prevent poor delivery from softening that penalty.
+\item \textbf{Gating and averaging.} The gate sets $\omega_k=0$ below the trust
+  threshold $\tau$. At or above the threshold, $\omega_k$ is the product of
+  $n_k$, $T_k$ and the staleness discount. For coordinate $p$, the mask selects
+  the eligible weights for the following average. A zero denominator gives a
+  zero update for that coordinate.
   \begin{equation}
     \mathrm{Agg}_p=\frac{\sum_k\omega_k\,m_{k,p}\,s_k\tilde\Delta_{k,p}}
                       {\sum_k\omega_k\,m_{k,p}}.
@@ -265,22 +268,23 @@ The evidence term multiplies five link factors:
 \begin{equation}
   e_k=\mathrm{PDR}_k\cdot R_k\cdot h_k\cdot\frac{1}{1+d_k/A}\cdot\frac{1}{1+|v_k|},
 \end{equation}
-namely the packet delivery ratio, long-run reliability, a handover factor
-($h_k=0.5$ during a handover, 1 otherwise), a distance factor with $d_k$ the
-UAV--BS distance and $A=800$\,m the configured side length of the area, and a factor
-in the dimensionless normalized speed $|v_k|$.
+Here $\mathrm{PDR}_k$ is the current packet delivery ratio and $R_k$ is the
+long-run reliability. A handover halves the evidence through $h_k$ (otherwise
+$h_k=1$). The final two terms reduce the evidence as the UAV--BS distance $d_k$
+or the magnitude of the normalized speed $v_k$ increases. The distance is scaled
+by the configured area side length $A=800$\,m.
 
 \subsection{Ablation Variants}
 To find out which part of CCRA matters, three variants are compared.
 \begin{itemize}
 \item \textbf{CCRA (full)}: all steps, with evidence $e_k$ from telemetry.
 \item \textbf{Mask-only}: $e_k=1$, but the masks are used in steps 2--6.
-\item \textbf{No-context}: $e_k=1$ and $\mathbf{m}_k=\mathbf{1}$, so lost
-  coordinates enter the computation as zeros, as a channel-unaware server would see
-  them.
+\item \textbf{No-context}: $e_k=1$ and $\mathbf{m}_k=\mathbf{1}$. This variant
+  treats the zero placeholders for erased coordinates as observed values.
 \end{itemize}
-Server-side deadline handling and staleness treatment are shared by all variants; only
-the mechanisms listed above are ablated, so no-context is not a channel-free system.
+All three variants receive updates subject to the same deadline and staleness
+policy. The ablation changes only how the aggregator handles erasure masks and
+telemetry.
 The code also has an option to correct $c_k$ for the noise expected at the
 reported SINR. It is inactive in the controlled study, which adds no residual noise
 to delivered parameters, so the full-versus-mask-only contrast isolates $e_k$.

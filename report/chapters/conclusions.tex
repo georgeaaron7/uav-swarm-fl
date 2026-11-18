@@ -37,39 +37,41 @@ effect. The results have been written up as a manuscript in IEEE letter format.
   evidence lowers the equilibrium of an honest UAV's reputation from its mean score
   toward the lower tail of its scores, and the measured gate decisions are
   consistent with this mechanism.
-\item On weak links, the exploratory comparison of the best variant with FLTrust was
-  inconclusive; a clear advantage over FLTrust appeared only at 15\,dB.
+\item In the exploratory comparison under attack, mask-only was \VsFltTrace{}
+  points ahead of FLTrust at 15\,dB (\ci{\VsFltTraceLo}{\VsFltTraceHi}). At 5\,dB,
+  the interval was too wide to distinguish an accuracy difference from practical
+  equivalence.
 \item Against the base paper, mask-only CCRA was \VsBpAttack{} points more accurate
   than its better erasure rule under attack at 5\,dB (\ci{\VsBpAttackLo}{\VsBpAttackHi}),
   with a signed clean contrast of $\VsBpClean$ points (mask-only minus fresh-only;
-  \ci{\VsBpCleanLo}{\VsBpCleanHi}). FLTrust also gains \FltVsBpAttack{} points
-  over fresh-only under attack. This large gain reflects trusted-reference defence;
-  our distinct findings concern masking and the telemetry rule.
-\item Within the base paper's rules, fresh-only exceeds reuse-old by
-  \BpCleanGain{} points on clean stressed links
-  (\ci{\BpCleanLo}{\BpCleanHi}). The rules diverged in \BpDivFresh/120 and
-  \BpDivReuse/120 runs; neither survived the tested sign-flip attack. This does not
-  contradict the original paper's honest-client convergence analysis.
+  \ci{\VsBpCleanLo}{\VsBpCleanHi}). The corresponding FLTrust gain over
+  fresh-only under attack was \FltVsBpAttack{} points. These cross-study
+  comparisons combine several design differences, including the use of a
+  trusted reference.
+\item On clean 5\,dB runs, fresh-only scored \BpCleanGain{} points higher than
+  reuse-old (\ci{\BpCleanLo}{\BpCleanHi}). Fresh-only and reuse-old diverged in
+  \BpDivFresh{} and \BpDivReuse{} of 120 runs respectively, including all
+  sign-flip runs. The base paper's convergence analysis concerns honest clients
+  \cite{shirvanimoghaddam2022erroneous}.
 \end{enumerate}
 
 \section{Scope for Future Work (Phase II)}
 \begin{enumerate}
-\item \textbf{Extend the completed base-paper comparison.} Repeat key contrasts on
-  a common hardware/software stack and fresh seeds. Evaluate whether filling lost
-  packets from a trusted UAV's previous parameters can improve on masking without
-  retaining poisoned values.
-\item \textbf{Redesign the reward rule} so that weak links do not bias reputation
-  downwards, for example by making the update symmetric in the evidence, or by
-  normalizing each UAV's score against its own recent history, and freeze the rule
-  before testing.
-\item \textbf{Confirm on fresh seeds and conditions.} Evaluate the revised rule on
-  new seeds and channel settings rather than the ten used here, so that tuning
-  cannot inflate the result.
-\item \textbf{Mobility and handover.} Use traces or mobility models with frequent
-  handovers, and more base stations, to test whether telemetry helps when the
-  dominant impairment is handover rather than fading.
-\item \textbf{Stronger attackers.} Add adaptive attacks that target the reputation
-  itself and attackers that spoof their link telemetry.
+\item \textbf{Replicate the erasure-rule comparison.} Run both sets of methods
+  on the same hardware and software with new seeds. Compare masking with reusing
+  a UAV's last delivered parameters subject to a trust check, and measure whether
+  reuse retains poisoned values.
+\item \textbf{Revise the reputation update.} Compare symmetric weighting of
+  rewards and penalties with scoring against each UAV's recent history. Test
+  whether either change preserves trust for honest UAVs with low packet delivery.
+\item \textbf{Hold out the confirmation runs.} Freeze the revised rule before
+  measuring its performance on new seeds and channel settings.
+\item \textbf{Test frequent handovers.} Extend the topology to more base stations
+  and use trajectories that trigger frequent handovers. Measure whether telemetry
+  changes accuracy and honest-update rejection in those runs.
+\item \textbf{Test the trust assumptions.} In simulation, allow adversaries to
+  vary their behaviour across rounds or supply false link telemetry. Measure the
+  resulting gate decisions and final accuracy.
 \item \textbf{Network-level simulation.} Replace the packet-error model with a
   network simulator such as NS-3 to capture medium access, retransmissions and
   latency.

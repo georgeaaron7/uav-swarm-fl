@@ -81,16 +81,14 @@ are outside the Phase~I scope.
 \item A completed \BpNumRuns-run comparison of the base paper's two erasure rules
   on matched seeds, attackers and channels, with validated checkpoint recovery and
   an explicit separation from the prespecified ablation.
-\item A four-page manuscript in IEEE letter format that reports these results.
+\item An IEEE letter manuscript presenting the ablation and the erasure-rule follow-up.
 \end{itemize}
 
 \section{Organization of the Report}
-Chapter~\ref{ch:lit} reviews federated learning, Byzantine-robust aggregation and FL
-over unreliable wireless links, and identifies the gap this project addresses.
-Chapter~\ref{ch:method} presents the theoretical study: the system and threat
-models, the aggregation rules and an analysis of the reputation update.
-Chapter~\ref{ch:results} presents the experimental study: implementation, protocol,
-the baseline, the preliminary study and the controlled study, and a discussion of
-what they show. Chapter~\ref{ch:conclusions} states the conclusions and the plan for
-Phase~II. The appendices, after the references, list the experimental settings and
-the steps needed to reproduce every result.
+Chapter~\ref{ch:lit} examines how prior studies handle poisoned updates and unreliable
+uplinks. Chapter~\ref{ch:method} defines the simulator and aggregation rules and
+derives the effect of link evidence on the reputation update.
+Chapter~\ref{ch:results} traces the experiments from the FedAvg baseline to the
+controlled ablation and the erasure-rule follow-up.
+Chapter~\ref{ch:conclusions} draws on those results to set the Phase~II priorities.
+Appendices~A and B give the simulation settings and reproduction commands.
