@@ -34,28 +34,27 @@
 \maketitle
 
 \begin{abstract}
-Federated learning (FL) in UAV swarms must tolerate compromised clients and
-incomplete updates. We study hierarchical FL with packet erasures driven by a
-measured air-to-ground trace, assumed reference signal-to-noise ratio (SNR) anchors
-and virtual neighboring base stations.
-A trusted-reference reputation aggregator is tested with three levels of channel
-awareness: none, packet-erasure masking, and link telemetry inside the reputation
-update. A prespecified paired study comprises \NumRuns{} runs (six aggregators, a
-clean setting and three model-poisoning attacks, three channel conditions,
-\NumSeeds{} seeds). The primary telemetry stress interaction is $\PrimGain$
-percentage points (pp; 95\% paired-seed bootstrap confidence interval (CI)
-\ci{\PrimLo}{\PrimHi}). Under attack at the 5\,dB anchor, masking improves accuracy
-by \MaskGain\pp{} (\ci{\MaskLo}{\MaskHi}) over no-context aggregation, which treats
-lost packets as zeros, whereas adding
-telemetry changes it by $\TelGain$\pp{} (\ci{\TelLo}{\TelHi}) relative to mask-only,
-accompanied by a rise in honest-update rejection from \RejMask\% to \RejCcra\%. A
-constant-evidence drift analysis suggests that asymmetric trust recovery lowers
-reputation on weak links. In a separate \BpNumRuns-run follow-up on the same seeds,
-mask-only aggregation outperforms the packet-level fresh-only baseline by
-\VsBpAttack\pp{} under attack at 5\,dB (\ci{\VsBpAttackLo}{\VsBpAttackHi}). FLTrust
-also gains \FltVsBpAttack\pp{} over fresh-only, consistent with an advantage shared
-by both trusted-reference methods. The signed clean contrast is $\VsBpClean$\pp{}
-(mask-only minus fresh-only; \ci{\VsBpCleanLo}{\VsBpCleanHi}).
+Federated learning (FL) in UAV swarms must handle compromised clients and incomplete
+updates. We model packet erasures in hierarchical FL using a measured air-to-ground
+trace, assumed reference signal-to-noise ratio (SNR) anchors and virtual neighboring
+base stations. We compare three versions of a trusted-reference reputation aggregator
+with no channel context, with packet-erasure masking, and with link telemetry added
+to the reputation update. The prespecified paired study includes \NumRuns{} runs
+(six aggregators, a clean setting and three model-poisoning attacks, three channel
+conditions, \NumSeeds{} seeds). The primary telemetry stress interaction is
+$\PrimGain$ percentage points (pp), with a 95\% paired-seed bootstrap confidence
+interval (CI) of \ci{\PrimLo}{\PrimHi}. Under attack at the 5\,dB anchor, masking
+raises accuracy by \MaskGain\pp{} (\ci{\MaskLo}{\MaskHi}) over no-context aggregation,
+which treats lost packets as zeros. Telemetry changes accuracy by
+$\TelGain$\pp{} (\ci{\TelLo}{\TelHi}) relative to mask-only and raises rejection of
+honest updates from \RejMask\% to \RejCcra\%. A drift analysis with fixed evidence
+suggests that asymmetric trust recovery lowers reputation on weak links.
+In a separate \BpNumRuns-run follow-up on the same seeds, mask-only beats the
+packet-level fresh-only baseline by \VsBpAttack\pp{} under attack at 5\,dB
+(\ci{\VsBpAttackLo}{\VsBpAttackHi}). FLTrust gains \FltVsBpAttack\pp{} over fresh-only,
+consistent with an advantage shared by both trusted-reference methods. With clean
+clients, mask-only minus fresh-only is $\VsBpClean$\pp{}
+(\ci{\VsBpCleanLo}{\VsBpCleanHi}).
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -72,21 +71,20 @@ Related work covers analog over-the-air Byzantine aggregation~\cite{fan2026uavby
 anti-jamming~\cite{barkatsa2024jamming} and attacks on reputation~\cite{liu2026evade}.
 Here we study individually received digital updates with packet erasures.
 
-Link telemetry might prevent unfair penalties for channel-distorted updates.
-A preliminary single-seed study against a cosine-weighted UAV-FL baseline~\cite{liao2023tee}
-suggested a benefit. Our controlled hierarchical packet-erasure study finds otherwise.
-Our contributions are:
+Link telemetry might spare clients penalties for updates degraded by the channel.
+A preliminary single-seed comparison with a cosine-weighted UAV-FL baseline~\cite{liao2023tee}
+suggested a benefit. In controlled hierarchical packet-erasure tests, telemetry
+reduced accuracy. We make three contributions.
 \begin{enumerate}
-\item We model hierarchical UAV-swarm FL whose uplink packet erasures are driven by
-  a measured DeepSense~6G drone received-power trace~\cite{alkhateeb2023deepsense,charan2025drone},
-  with BS association, handover and model-poisoning attackers.
+\item We use a measured DeepSense~6G drone received-power trace~\cite{alkhateeb2023deepsense,charan2025drone}
+  to drive uplink packet erasures in hierarchical UAV-swarm FL with BS association,
+  handover and model-poisoning attackers.
 \item We extend FLTrust's trusted-reference design~\cite{cao2021fltrust} with
-  an erasure-aware reputation aggregator and isolate its two
-  channel-aware mechanisms, erasure masking and telemetry-weighted reputation, in a
-  prespecified, paired \NumRuns-run simulation study.
+  an erasure-aware reputation aggregator. We isolate erasure masking and
+  telemetry-weighted reputation in a prespecified, paired \NumRuns-run simulation.
 \item We identify the zero-drift equilibrium of the reputation update as an expectile
-  of the behavior score~\cite{newey1987expectile} and show that it falls as link
-  evidence weakens, consistent with the observed loss from telemetry.
+  of the behavior score~\cite{newey1987expectile}. The equilibrium falls as link
+  evidence weakens, consistent with the accuracy loss from telemetry.
 \end{enumerate}
 
 \section{System Model}
@@ -118,35 +116,34 @@ received) updates of the UAVs it serves; BS models are synchronized every $E$ ro
 \end{figure}
 
 \subsection{Hierarchical learning}
-$K$ UAVs train a model $\mathbf{w}\in\mathbb{R}^P$ and are served by $B$ base stations (BSs)
+$K$ UAVs train a model $\mathbf{w}\in\mathbb{R}^P$ across $B$ base stations (BSs)
 (Fig.~\ref{fig:system}). In round $t$, UAV $k$ attached to BS $b$ starts from the
 edge model $\mathbf{w}_b^{t}$, runs local SGD on its private data $\mathcal{D}_k$ and
 uploads $\boldsymbol{\Delta}_k^t$. BS $b$ aggregates the updates it receives into
-$\mathbf{w}_b^{t+1}=\mathbf{w}_b^{t}+\mathrm{Agg}(\cdot)$. Every $E$ rounds the BS
-models are averaged, weighted by each cell's number of training samples, and
-broadcast~\cite{abad2020hfl}. Each BS also holds a small root set $\mathcal{D}_0$,
-disjoint from all UAV data and assumed clean, on which it computes a reference update
-$\mathbf{r}_b^t$ each round, as in FLTrust~\cite{cao2021fltrust}.
+$\mathbf{w}_b^{t+1}=\mathbf{w}_b^{t}+\mathrm{Agg}(\cdot)$. Every $E$ rounds, the
+system averages the BS models by cell training sample count and broadcasts the
+result~\cite{abad2020hfl}. Each BS uses a small root set $\mathcal{D}_0$, assumed
+clean and disjoint from UAV data, to compute a reference update $\mathbf{r}_b^t$
+each round, as in FLTrust~\cite{cao2021fltrust}.
 
 \subsection{Erasure channel}
-An update is split into packets of $L$ parameters. To simulate uplink SNR $\gamma_k^t$,
+Each packet carries $L$ update parameters. To simulate uplink SNR $\gamma_k^t$,
 we replay relative received-power changes from DeepSense~6G Scenario~23%
-~\cite{alkhateeb2023deepsense,charan2025drone} around an assumed SNR $\bar\gamma$,
-with a correction for the 3-D distance to each virtual BS.
-Conditional on the link state, packets are lost independently, all parameters of a
-packet sharing one erasure, with probability
+~\cite{alkhateeb2023deepsense,charan2025drone} around an assumed SNR $\bar\gamma$ and
+correct for 3-D distance to each virtual BS. Given the link state, packets are lost
+independently. All parameters in a packet share an erasure with probability
 \begin{equation}
   p_k^t = \bigl(1+\exp\bigl(a(\gamma_k^t-\gamma_{\mathrm{th}})\bigr)\bigr)^{-1},
 \end{equation}
-and an update that misses the round deadline is dropped. This curve approximates the
+The BS drops any update that misses the round deadline. The curve approximates the
 normal-approximation error rate with the $\tfrac12\log_2 n$ correction~\cite{polyanskiy2010finite}
-for \PerBits-bit packets at \PerRate{} bits per channel use (about 50\% loss at 3\,dB),
-averaged over a fitted \PerSpread\,dB within-round SNR spread: the two agree within
-\PerMaxGap\pp{} on the plotted SNR grid. The BS therefore observes
+for \PerBits-bit packets at \PerRate{} bits per channel use (about 50\% loss at 3\,dB).
+With that error rate averaged over a fitted \PerSpread\,dB within-round SNR spread,
+the curves agree within \PerMaxGap\pp{} on the plotted SNR grid. The BS observes
 $\tilde{\boldsymbol\Delta}_k=\mathbf{m}_k\odot\boldsymbol\Delta_k$, where
-$\mathbf{m}_k\in\{0,1\}^P$ marks delivered coordinates. Association uses a
-hysteresis-and-time-to-trigger handover rule on received power. There is no jammer
-and no additive parameter noise.
+$\mathbf{m}_k\in\{0,1\}^P$ marks delivered coordinates. Handover uses received power
+with hysteresis and a time-to-trigger. The model excludes jamming and additive
+parameter noise.
 
 \subsection{Threat model}
 A fixed set of $f$ UAVs is Byzantine. They follow the protocol but replace their
@@ -160,45 +157,45 @@ by the BS and is assumed authentic.
 \section{Proposed Erasure-Aware Reputation Aggregation}
 \label{sec:method}
 Let $\mathcal{S}(\mathbf{x};\mathbf{m})$ restrict $\mathbf{x}$ to the coordinates where
-$\mathbf{m}=1$. Each BS runs the following steps (index $t$ dropped).
+$\mathbf{m}=1$. Each BS applies the steps below, with round index $t$ omitted.
 
-\emph{1) Clipping.} With $\rho_k$ the RMS of the delivered entries of
-$\tilde{\boldsymbol\Delta}_k$, scale the update by $s_k=\min(1,\mathrm{med}_j\,\rho_j/\rho_k)$
-(regularized for $\rho_k=0$), which limits the effect of large-norm updates.
+\emph{1) Clipping.} To limit large-norm updates, the BS takes the RMS $\rho_k$ of
+the delivered entries of $\tilde{\boldsymbol\Delta}_k$ and scales the update by
+$s_k=\min(1,\mathrm{med}_j\,\rho_j/\rho_k)$ (regularized for $\rho_k=0$).
 
-\emph{2) Masked similarity.} We adapt FLTrust's cosine comparison with the root
-update~\cite{cao2021fltrust} by restricting both vectors to delivered coordinates:
+\emph{2) Masked similarity.} We restrict FLTrust's cosine comparison with the root
+update~\cite{cao2021fltrust} to coordinates delivered by the UAV, giving
 $c_k=\cos\bigl(\mathcal{S}(s_k\tilde{\boldsymbol\Delta}_k;\mathbf{m}_k),\mathcal{S}(\mathbf{r};\mathbf{m}_k)\bigr)$,
 with $c_k=0$ for an empty mask or a zero vector.
 
 \emph{3) Behavior score.} $b_k=\mathrm{clip}\bigl(c_k/\mathrm{med}_{j:c_j>0}\,c_j,\,0,\,1\bigr)$,
 and $b_k=0$ for all $k$ if no $c_j$ is positive.
 
-\emph{4) Reputation.} With memory $\beta\in[0,1)$,
+\emph{4) Reputation.} With memory $\beta\in[0,1)$, the BS updates reputation by
 \begin{equation}
   T_k \leftarrow T_k + \eta_k\,(b_k-T_k),\qquad
   \eta_k=\begin{cases}(1-\beta)\,e_k, & b_k>T_k,\\ 1-\beta, & b_k\le T_k,\end{cases}
   \label{eq:rep}
 \end{equation}
-so that bad behavior is penalized at full rate and a weak link cannot shield an
-attacker that drops its own packets. The \emph{evidence} $e_k\in[0,1]$ slows rewards
-on poor links:
-$e_k=\mathrm{PDR}_k\cdot R_k\cdot h_k\cdot g_k\cdot v_k$, the product of the packet
-delivery ratio, long-term reliability, a handover penalty ($h_k=0.5$ during a
+The BS applies penalties at full rate, even if an attacker drops its own
+packets. On poor links, the \emph{evidence} $e_k\in[0,1]$ slows reputation gains.
+Its value $e_k=\mathrm{PDR}_k\cdot R_k\cdot h_k\cdot g_k\cdot v_k$ is the product of
+packet delivery ratio, long-term reliability, a handover penalty ($h_k=0.5$ during a
 handover), a distance factor and a speed factor.
 
-\emph{5) Masked weighted average.} UAVs with $T_k<\tau$ get zero weight; otherwise
-$\omega_k=n_kT_k$, with $n_k=|\mathcal{D}_k|$ and a staleness discount. Each coordinate
-is averaged only over the UAVs that delivered it, and is zero if none did:
+\emph{5) Masked weighted average.} The BS gives UAVs with $T_k<\tau$ zero weight.
+The rest receive $\omega_k=n_kT_k$, with $n_k=|\mathcal{D}_k|$ and a staleness
+discount. Each average uses only UAVs that delivered that coordinate and is zero
+if none did.
 \begin{equation}
   \mathrm{Agg}_p=\frac{\sum_k \omega_k\, m_{k,p}\, s_k\tilde\Delta_{k,p}}{\sum_k \omega_k\, m_{k,p}}.
 \end{equation}
 
 \emph{Variants.} \textbf{CCRA (full)} uses all steps with telemetry evidence $e_k$.
-\textbf{Mask-only} sets $e_k=1$ but keeps the masks. \textbf{No-context} additionally sets
-$\mathbf{m}_k=\mathbf{1}$, so lost packets enter steps 1--5 as zeros, which is how a
-channel-unaware server sees them. With no parameter noise, the code's SINR
-calibration of $c_k$ is inactive, so full versus mask-only isolates $e_k$.
+\textbf{Mask-only} sets $e_k=1$ and keeps the masks. \textbf{No-context} also sets
+$\mathbf{m}_k=\mathbf{1}$, so steps 1--5 see lost packets as zeros, as on a
+channel-unaware server. Without parameter noise, SINR calibration of $c_k$ stays
+inactive in the code. Comparing full CCRA with mask-only isolates $e_k$.
 
 \section{Equilibrium Analysis of the Reputation}
 \label{sec:analysis}
@@ -216,44 +213,43 @@ $\mathbb{E}[b]$ for $e=1$, is nondecreasing in $e$, tends to
 $\operatorname{ess\,inf} b$ as $e\to0$, and is the expectile of $b$ at level
 $q=e/(1+e)$~\cite{newey1987expectile}.
 
-\emph{Proof:} $g_e$ is continuous with $g_e(0)=e\,\mathbb{E}[b]>0$ and
-$g_e(1)=-\mathbb{E}[1-b]<0$, so a zero exists. For $T_2>T_1$,
-$g_e(T_2)-g_e(T_1)$ lies between $-(T_2-T_1)$ and $-e(T_2-T_1)$, so $g_e$ is strictly
-decreasing and the zero is unique. For $e=1$, $g_1(T)=\mathbb{E}[b]-T$. Since
-$g_e(T)$ is nondecreasing in $e$, a larger $e$ cannot lower the zero. For
-$T<\operatorname{ess\,inf}b$, $g_e(T)>0$, so the zero is at least
-$\operatorname{ess\,inf}b$; for any larger $T$, $\mathbb{E}[(T-b)^+]>0$ while
-$e\,\mathbb{E}[(b-T)^+]\to0$, so $g_e(T)<0$ for small $e$. Dividing $g_e=0$ by $1+e$
-gives $q\,\mathbb{E}[(b-T)^+]=(1-q)\,\mathbb{E}[(T-b)^+]$, the expectile
-condition. \hfill$\blacksquare$
+\emph{Proof:} The continuous function $g_e$ crosses zero because
+$g_e(0)=e\,\mathbb{E}[b]>0$ and $g_e(1)=-\mathbb{E}[1-b]<0$. For $T_2>T_1$,
+$g_e(T_2)-g_e(T_1)$ lies between $-(T_2-T_1)$ and $-e(T_2-T_1)$. Thus $g_e$ decreases
+strictly and has a unique zero. For $e=1$, $g_1(T)=\mathbb{E}[b]-T$. A larger $e$
+can only leave the zero unchanged or raise it because $g_e(T)$ is nondecreasing in
+$e$. For $T<\operatorname{ess\,inf}b$, $g_e(T)>0$, placing the zero at or above
+$\operatorname{ess\,inf}b$. For any $T$ above that bound, $\mathbb{E}[(T-b)^+]>0$ and
+$e\,\mathbb{E}[(b-T)^+]\to0$, making $g_e(T)<0$ for small $e$. Dividing $g_e=0$ by
+$1+e$ gives the expectile condition
+$q\,\mathbb{E}[(b-T)^+]=(1-q)\,\mathbb{E}[(T-b)^+]$. \hfill$\blacksquare$
 
-$T^\star$ is the zero of the conditional drift, not an almost-sure limit: with
-$\beta=0.5$ the reputation keeps fluctuating, and in the simulator $e_k$ and $b_k$
-vary over time. Under this approximation, weaker evidence moves the equilibrium from the mean score toward the
-lower tail of the score distribution. The asymmetry meant to stop packet-dropping
-attackers can therefore lower the trust of an honest UAV with non-IID data on a weak
-link, so that it falls below $\tau$ more often, while an attacker whose scores are
-already near zero is suppressed little further. Section~\ref{sec:results} checks
-whether the gate statistics are consistent with this mechanism.
+$T^\star$ is the zero of the conditional drift. With $\beta=0.5$, the reputation
+keeps fluctuating, so this equilibrium gives no almost-sure convergence guarantee.
+In the simulator, both $e_k$ and $b_k$ vary over time. Under the constant-evidence
+approximation, weaker evidence moves the equilibrium
+from the mean toward the lower tail of the score distribution. The same asymmetry
+that penalizes packet-dropping attackers can push an honest UAV with non-IID data
+below $\tau$ more often on a weak link. It does little to further suppress an attacker
+whose scores are already near zero. Section~\ref{sec:results} checks this mechanism
+against the gate statistics.
 
 \section{Simulation Results}
 \label{sec:results}
 
 \subsection{Simulation Setup}
-Table~\ref{tab:params} lists the values assumed for the parameters. Attackers are
-chosen per seed and kept fixed across methods. The channel is either ideal or the
-same measured trace replayed at assumed anchors $\bar\gamma=15$\,dB (mean PDR
-\PdrTrace\%) and $\bar\gamma=5$\,dB (mean PDR \PdrStress\%). The ideal channel
-uses different, synthetic geometry: \IdealHandovers{} handovers per run versus
-\TraceHandovers{} on the traces, so it is not a pure erasure-free control.
-The baselines are
+Table~\ref{tab:params} lists the simulation parameters. We keep attackers fixed
+across methods for each seed. We compare an ideal channel with two replays of the
+same measured trace at assumed anchors $\bar\gamma=15$\,dB (mean PDR \PdrTrace\%)
+and $\bar\gamma=5$\,dB (mean PDR \PdrStress\%). The ideal channel removes erasures
+and uses synthetic geometry, yielding \IdealHandovers{} handovers per run versus
+\TraceHandovers{} on the traces. The baselines are
 FedAvg~\cite{mcmahan2017fedavg}, coordinate-wise median~\cite{yin2018median} and
-FLTrust~\cite{cao2021fltrust}, which we adapt to the masks: the median ignores erased
-entries, and FLTrust scores cosine similarity and matches the root norm on delivered
-coordinates, then averages coordinate-wise. The shared root set receives about 78
-optimizer steps per cell-round in FLTrust
-(the median client budget), versus one epoch (8 steps) in CCRA and its variants;
-this comparison does not isolate the aggregation rule alone.
+FLTrust~\cite{cao2021fltrust}. To account for erasures, the median skips missing
+entries. FLTrust computes cosine similarity and matches the root norm on delivered
+coordinates, then averages coordinate-wise. FLTrust trains on the shared root set
+for about 78 optimizer steps per cell-round (the median client budget). CCRA and its
+variants use one epoch (8 steps), so root training also differs in this comparison.
 
 \begin{table}[t]
 \centering
@@ -277,18 +273,18 @@ Seeds; runs & \NumSeeds; \NumRuns{} \\
 \end{tabular}
 \end{table}
 
-The factorial design is $6\times4\times3\times10=\NumRuns$ paired runs, including
-clean conditions. Numerical divergences count as 10\%. The primary telemetry
-contrast (CCRA minus mask-only at 5\,dB minus that at 15\,dB) and 1\pp{} threshold
-were prespecified. Intervals use 10{,}000 percentile bootstrap resamples over seeds;
-other contrasts are exploratory, without multiplicity adjustment.
+The factorial design gives $6\times4\times3\times10=\NumRuns$ paired runs, including
+clean conditions. We score numerical divergences at 10\% accuracy. We prespecified
+the primary telemetry contrast (CCRA minus mask-only at 5\,dB minus that at 15\,dB)
+and a 1\pp{} threshold. Percentile bootstrap intervals use 10{,}000 seed resamples.
+Other contrasts are exploratory and use unadjusted intervals.
 
-A separate exploratory \BpNumRuns-run follow-up adapts the whole-upload rules in
-Eqs.~(4) and (5) of Shirvanimoghaddam et al.~\cite{shirvanimoghaddam2022erroneous}
-to packet erasures on matched seeds 41--50. Fresh-only averages each delivered
-coordinate by client sample count; reuse-old fills gaps from that client's last
-received parameter values. The original convergence analysis assumes honest
-clients. Both baselines retain the unused 500-image root reserve.
+In a separate exploratory \BpNumRuns-run follow-up, we adapt the whole-upload rules
+in Eqs.~(4) and (5) of Shirvanimoghaddam et al.~\cite{shirvanimoghaddam2022erroneous}
+to packet erasures on matched seeds 41--50. Fresh-only averages delivered coordinates,
+weighted by client sample count. Reuse-old fills gaps with each client's last received
+parameter values. The original convergence analysis assumes honest clients. Both
+baselines keep the unused 500-image root reserve.
 
 \begin{figure}[t]
 \centering
@@ -307,17 +303,16 @@ come from the separate \BpNumRuns-run follow-up. Diverged runs count as 10\%.}
 \end{table}
 
 \subsection{Robustness and Stability}
-Fig.~\ref{fig:acc} and Table~\ref{tab:outcomes} show that FedAvg and the
-coordinate-wise median diverged in \DivFedavg{} and \DivMedian{} of their 120 runs
-respectively (FedAvg in all 30 sign-flip runs), whereas none of the four
-root-referenced methods diverged in its 120 runs. Across all runs, mask-only attains
-the highest mean accuracy (\AllMask\% versus
-\AllFedavg\% for FedAvg). At 5\,dB under attack, FLTrust exceeds full CCRA by
-\FltOverCcraStress\pp{} (\AccFltrustStress\% versus \AccCcraStress\%).
-Mask-only gains \VsFltTrace\pp{} against FLTrust
-(\ci{\VsFltTraceLo}{\VsFltTraceHi}) under attack at 15\,dB, while the 5\,dB
-comparison is inconclusive ($\VsFltStress$\pp, \ci{\VsFltStressLo}{\VsFltStressHi};
-exploratory).
+Of the 120 runs per method, FedAvg diverged in \DivFedavg{}, including all 30
+sign-flip runs. The coordinate-wise median diverged in \DivMedian{} runs. Each of
+the four root-referenced methods finished 120 runs without diverging
+(Fig.~\ref{fig:acc} and Table~\ref{tab:outcomes}). Across all runs, mask-only had
+the highest mean accuracy (\AllMask\% versus \AllFedavg\% for FedAvg). At 5\,dB
+under attack, FLTrust exceeded full CCRA by \FltOverCcraStress\pp{}
+(\AccFltrustStress\% versus \AccCcraStress\%). Under attack at 15\,dB, mask-only
+gained \VsFltTrace\pp{} over FLTrust (\ci{\VsFltTraceLo}{\VsFltTraceHi}). The
+exploratory 5\,dB comparison was inconclusive ($\VsFltStress$\pp,
+\ci{\VsFltStressLo}{\VsFltStressHi}).
 
 \begin{figure}[t]
 \centering
@@ -328,16 +323,15 @@ prespecified $\pm1$\pp{} region of practical equivalence.}
 \end{figure}
 
 \subsection{Which Channel Awareness Helps}
-Fig.~\ref{fig:ablation} separates the two mechanisms. The prespecified stress
-interaction is $\PrimGain$\pp{} (\ci{\PrimLo}{\PrimHi}), below the $-1$\pp{} practical
-threshold. On the ideal channel the masks are all ones, so mask-only and no-context
-coincide. As delivery degrades, erasure masking becomes valuable: at 5\,dB it adds
-\MaskGain\pp{} over the zero-filled no-context baseline (\ci{\MaskLo}{\MaskHi}).
-Telemetry does the opposite: at 5\,dB, full
-CCRA minus mask-only is $\TelGain$\pp{} (\ci{\TelLo}{\TelHi}; \AccCcraStress\% versus
-\AccMaskStress\%). Combining the two mechanisms leaves an inconclusive net effect
-relative to no-context. Telemetry also hurts slightly on the ideal channel
-($\TelIdeal$\pp{} versus mask-only), despite no erasures.
+The prespecified stress interaction in Fig.~\ref{fig:ablation} is $\PrimGain$\pp{}
+(\ci{\PrimLo}{\PrimHi}), below the $-1$\pp{} practical threshold. On the ideal
+channel, all mask entries are one, so mask-only and no-context coincide. At 5\,dB,
+masking raises accuracy by \MaskGain\pp{} over the zero-filled no-context baseline
+(\ci{\MaskLo}{\MaskHi}). At that anchor, full CCRA reaches \AccCcraStress\%, compared
+with \AccMaskStress\% for mask-only. Adding telemetry changes accuracy by
+$\TelGain$\pp{} (\ci{\TelLo}{\TelHi}). The combined effect of masking and telemetry
+is inconclusive relative to no-context. Even without erasures on the ideal channel,
+telemetry lowers accuracy slightly ($\TelIdeal$\pp{} compared with mask-only).
 
 \begin{figure}[t]
 \centering
@@ -348,41 +342,41 @@ seeds (percent of received updates).}
 \end{figure}
 
 \subsection{Consistency with the Equilibrium Analysis}
-Consistent with Proposition~1, telemetry raises honest rejection from \RejMask\%
-to \RejCcra\%, while attacker acceptance falls only from \AccptMask\% to
+With telemetry, honest-update rejection rises from \RejMask\% to \RejCcra\%,
+consistent with Proposition~1. Attacker acceptance falls only from \AccptMask\% to
 \AccptCcra\% (Fig.~\ref{fig:gate}). FLTrust rejects \RejFltrust\% of honest updates.
-Its norm matching, score normalization and weights also differ, so this does not
-isolate memory. These descriptive rates do not establish causality.
+Memory, norm matching, score normalization and weights all differ in that
+comparison. The descriptive rates leave causality open.
 
 \subsection{Comparison with the Base Paper}
-Under attack at 5\,dB, mask-only attains \AccMaskStress\% against
-\BpAttackStressFresh\% for the better base-paper rule, fresh-only: a paired gain of
-\VsBpAttack\pp{} (\ci{\VsBpAttackLo}{\VsBpAttackHi}). FLTrust also gains
-\FltVsBpAttack\pp{} over fresh-only. The gains are consistent with a benefit from
-the shared trusted reference, though the comparison also changes other parts of
-the rule. Fresh-only already averages over delivered coordinates.
-The signed clean contrast is $\VsBpClean$\pp{} (\ci{\VsBpCleanLo}{\VsBpCleanHi}).
-Fresh-only and reuse-old diverged in \BpDivFresh/120 and \BpDivReuse/120 runs,
-including every sign-flip run; their clean 5\,dB contrast is \BpCleanGain\pp{}.
+Under attack at 5\,dB, mask-only reached \AccMaskStress\% and fresh-only, the better
+base-paper rule, reached \BpAttackStressFresh\%. Mask-only gained \VsBpAttack\pp{}
+in the paired comparison (\ci{\VsBpAttackLo}{\VsBpAttackHi}). FLTrust gained
+\FltVsBpAttack\pp{} over fresh-only, which already averages delivered coordinates.
+Both gains are consistent with a benefit from the shared trusted reference,
+though the rules also differ elsewhere. In clean runs, mask-only minus fresh-only is
+$\VsBpClean$\pp{} (\ci{\VsBpCleanLo}{\VsBpCleanHi}). Fresh-only and reuse-old diverged
+in \BpDivFresh/120 and \BpDivReuse/120 runs, including every sign-flip run. Fresh-only
+leads reuse-old by \BpCleanGain\pp{} at 5\,dB without attacks.
 The RTX~2060/GTX~1650 follow-up and A100 ablation agree within \XcheckMax\pp{} per
-ideal-channel run, with identical divergences; this does not bound hardware effects
-under stress. Cross-study contrasts are exploratory.
+ideal-channel run, with identical divergences. Hardware effects under stress fall
+outside the check. Cross-study contrasts are exploratory.
 
 \subsection{Limitations}
-We use one measured BS with virtual neighbors about 14\,m from it (28\,m apart),
-assumed SNR anchors (the separate channel validation has median SNR 8.6\,dB
-at the 5\,dB anchor), and no retransmissions. Ideal and trace geometries differ.
-We assume a clean root set and use one model and aerial-transformed CIFAR-10.
-Telemetry spoofing and
-adaptive reputation attacks~\cite{liu2026evade} are untested.
+We assume SNR anchors and place virtual neighbors about 14\,m from one measured
+BS (28\,m apart). Separate validation gives a median SNR of 8.6\,dB at the
+5\,dB anchor. Ideal and trace geometries differ. We omit retransmissions, assume
+a clean root set and use one model with aerial-transformed CIFAR-10. Telemetry
+spoofing and adaptive reputation attacks~\cite{liu2026evade} remain untested.
 
 \section{Conclusion}
 \label{sec:conclusion}
-Masking improves attacked accuracy; telemetry-weighted reputation rejects more
-honest updates and hurts weak-link performance. The large gain over fresh-only
-is also seen with FLTrust, which shares the trusted reference. Our distinct findings are
-the masking ablation and telemetry analysis. Future work will revise the reward
-rule and test fresh seeds, stronger mobility and adaptive attackers.
+Masking improves accuracy under attack. Telemetry-weighted reputation rejects
+more honest updates and lowers weak-link accuracy. FLTrust shares the trusted
+reference and also gains substantially over fresh-only. The ablation isolates
+masking, and the drift analysis explains how telemetry can lower reputation. We
+will revise the reward rule and test fresh seeds, stronger mobility and adaptive
+attackers.
 
 \bibliographystyle{IEEEtran}
 \bibliography{refs}
